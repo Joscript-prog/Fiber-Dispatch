@@ -87,6 +87,9 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
 .tc{background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rs);padding:9px 11px;margin-bottom:5px;}
 .tc.actuel{border-left:3px solid var(--green);}
 .tc.nouveau{border-left:3px solid var(--blue);}
+.tc.externe{border-left:3px solid var(--red);}
+.tc.hidden-ext{display:none;}
+.b-externe{background:var(--rdim);color:var(--red);}
 .tc-hd{display:flex;justify-content:space-between;align-items:flex-start;}
 .tc-nom{font-family:var(--fh);font-weight:700;font-size:12px;}
 .tc-soc{font-size:10px;color:var(--txt3);margin-top:1px;}
@@ -321,10 +324,11 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
     <div id="dtab-tech" class="ptab-content">
       <div class="sbox"><input id="tech-search" placeholder="Rechercher un technicien…" oninput="renderTechList()"></div>
       <div class="fchips">
-        <button class="fchip active" onclick="setTF('all',this)">Tous</button>
+        <button class="fchip active" onclick="setTF('all',this)">Tous MB</button>
         <button class="fchip" onclick="setTF('actuel',this)">Actuels</button>
         <button class="fchip" onclick="setTF('nouveau',this)">Nouveaux</button>
         <button class="fchip" onclick="setTF('OK',this)">OK</button>
+        <button class="fchip" id="btn-show-ext" onclick="toggleExt(this)" style="background:var(--rdim);color:var(--red);border-color:var(--red)">👁 Base nationale</button>
       </div>
       <div id="tech-list"></div>
     </div>
@@ -333,8 +337,9 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
   <div id="dright">
     <div id="map"></div>
     <div id="mleg">
-      <div class="li"><div class="ld" style="background:#2dd4a0"></div>Actuel</div>
-      <div class="li"><div class="ld" style="background:#4f8ef7"></div>Nouveau</div>
+      <div class="li"><div class="ld" style="background:#2dd4a0"></div>Actuel MB</div>
+      <div class="li"><div class="ld" style="background:#4f8ef7"></div>Nouveau MB</div>
+      <div class="li"><div class="ld" style="background:#f75555"></div>Base nationale</div>
       <div class="li"><div class="ls" style="background:#f5a623"></div>Intervention</div>
       <div class="li"><div class="ls" style="background:#f75555"></div>Assignée</div>
       <div class="li"><div class="ld" style="background:#a78bfa;box-shadow:0 0 6px #a78bfa"></div>Secteur actif</div>
@@ -503,10 +508,22 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
       </div>
     </div>
     <div class="set-card">
-      <h3>👷 Import techniciens Excel</h3>
+      <h3>👷 Import techniciens Excel (Marie Blachère)</h3>
       <p style="font-size:11px;color:var(--txt2);margin-bottom:10px;line-height:1.5">Colonne D = Nom · Colonne E = Prénom · Colonne L = Téléphone</p>
       <input type="file" id="techExcel" accept=".xlsx,.xls" style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rs);color:var(--txt);padding:6px;width:100%;font-size:11px">
       <div style="margin-top:8px;font-size:11px;color:var(--txt3)" id="xl-status">Aucun import</div>
+    </div>
+    <div class="set-card">
+      <h3>🇫🇷 Import base nationale de techniciens</h3>
+      <p style="font-size:11px;color:var(--txt2);margin-bottom:10px;line-height:1.5">
+        Fichier <strong>ExportExcel_Fn_Employe_Liste</strong><br>
+        Colonnes : Code (C) · Nom (D) · Prénom (E) · CP (J) · Ville (K) · GSM (L) · Email (N) · Secteur (O)<br>
+        Ces techniciens apparaissent en <span style="color:var(--red)">rouge</span> et sont <strong>masqués par défaut</strong>.<br>
+        Cliquez sur <em>👁 Base nationale</em> dans Dispatch pour les afficher.
+      </p>
+      <input type="file" id="extExcel" accept=".xlsx,.xls" style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rs);color:var(--txt);padding:6px;width:100%;font-size:11px">
+      <div style="margin-top:8px;font-size:11px;color:var(--txt3)" id="ext-status">Aucun import</div>
+      <button class="btn btn-d btn-sm" style="margin-top:10px" onclick="clearExtTechs()">✕ Supprimer la base nationale</button>
     </div>
     <div class="set-card">
       <h3>👤 Profils mail</h3>
@@ -618,6 +635,7 @@ const TECHS_DEF=[
 // ═══════════════════════════════════
 let db=null;
 let techs=[],ots=[],asgn={},geocache={},itvs=[];
+let showExt=false;
 let tMkrs={},otMkrs={},hlCircles=[];
 let selOT=null,tf='all',prevTab='rdv',profil='jonathan';
 let editId=null,agDate=new Date(),map;
@@ -710,7 +728,7 @@ function initMap(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
 }
 function tIcon(type,hl){
-  const c=hl?'#a78bfa':(type==='actuel'?'#2dd4a0':'#4f8ef7'),s=hl?18:13;
+  const c=hl?'#a78bfa':(type==='actuel'?'#2dd4a0':(type==='externe'?'#f75555':'#4f8ef7')),s=hl?18:13;
   const g=hl?`box-shadow:0 0 10px ${c},0 0 20px ${c}66`:`box-shadow:0 0 5px ${c}88`;
   return L.divIcon({className:'',html:`<div style="width:${s}px;height:${s}px;background:${c};border:2px solid rgba(255,255,255,.7);border-radius:50%;${g}"></div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
 }
@@ -856,7 +874,7 @@ function apCard(tech,idx,dist,sec,otIdx){
   const planHtml=myI.length?myI.map(iv=>`<div class="plan-row"><span>${fmtDate(iv.date)}</span><span>${iv.site}</span></div>`).join(''):'<div class="plan-empty">Aucune intervention planifiée</div>';
   const myOTCount=(asgn[idx]||[]).length;
   const d=document.createElement('div');d.className=`ap-tc ${sec?'sec':'prox'}`;
-  d.innerHTML=`<div class="ap-tc-hd"><div class="ap-tc-nom">${tech.nom}</div><div class="ap-tc-dist">${dist!==null?Math.round(dist)+' km':'? km'}</div></div><div style="font-size:10px;color:var(--txt3);margin-bottom:3px">${tech.societe}</div><div class="ap-tc-badges">${sBadge(tech.statut)}<span class="badge ${tech.type==='actuel'?'b-actuel':'b-nouveau'}">${tech.type}</span>${sec?'<span class="badge b-sec">⭐ secteur</span>':'<span class="badge b-prox">📍 proche</span>'}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">${tech.competences.map(c=>`<span class="badge b-sk">${c}</span>`).join('')}</div>${myOTCount>0?`<div style="font-size:10px;color:var(--green);margin-bottom:3px">${myOTCount} OT déjà assigné${myOTCount>1?'s':''}</div>`:''}<div class="plan-mini"><div class="plan-mini-title">📅 Planning à venir</div>${planHtml}</div><button class="btn btn-s btn-sm btn-full" style="margin-top:7px" onclick="assignOT(${otIdx},${idx})">⚡ Assigner à ce technicien</button>`;
+  d.innerHTML=`<div class="ap-tc-hd"><div class="ap-tc-nom">${tech.nom}</div><div class="ap-tc-dist">${dist!==null?Math.round(dist)+' km':'? km'}</div></div><div style="font-size:10px;color:var(--txt3);margin-bottom:3px">${tech.societe}</div><div class="ap-tc-badges">${sBadge(tech.statut)}<span class="badge ${tech.type==='actuel'?'b-actuel':(tech.type==='externe'?'b-externe':'b-nouveau')}">${tech.type}</span>${sec?'<span class="badge b-sec">⭐ secteur</span>':'<span class="badge b-prox">📍 proche</span>'}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">${tech.competences.map(c=>`<span class="badge b-sk">${c}</span>`).join('')}</div>${myOTCount>0?`<div style="font-size:10px;color:var(--green);margin-bottom:3px">${myOTCount} OT déjà assigné${myOTCount>1?'s':''}</div>`:''}<div class="plan-mini"><div class="plan-mini-title">📅 Planning à venir</div>${planHtml}</div><button class="btn btn-s btn-sm btn-full" style="margin-top:7px" onclick="assignOT(${otIdx},${idx})">⚡ Assigner à ce technicien</button>`;
   return d;
 }
 function closeAP(){
@@ -886,7 +904,7 @@ function renderTechList(){
   c.innerHTML='';
   f.forEach(t=>{
     const ri=techs.indexOf(t),myOTs=(asgn[ri]||[]).map(oi=>ots[oi]).filter(Boolean);
-    const d=document.createElement('div');d.className=`tc ${t.type}`;
+    const d=document.createElement('div');d.className=`tc ${t.type}${t.type==='externe'&&!showExt?' hidden-ext':''}`;d.dataset.externe=t.type==='externe'?'1':'0';
     d.innerHTML=`<div class="tc-hd"><div><div class="tc-nom">${t.nom}</div><div class="tc-soc">${t.societe} · ${t.ville}</div></div><div class="tc-cnt${myOTs.length?' ot':''}">${myOTs.length} OT</div></div><div class="tc-meta">${sBadge(t.statut)}<span class="badge ${t.type==='actuel'?'b-actuel':'b-nouveau'}">${t.type}</span>${t.secteurs.slice(0,3).map(s=>`<span class="badge b-sk">${s}</span>`).join('')}${t.secteurs.length>3?`<span class="badge b-sk">+${t.secteurs.length-3}</span>`:''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">${t.competences.slice(0,4).map(c=>`<span class="badge b-sk" style="font-size:9px">${c}</span>`).join('')}</div><div class="tc-acts">${t.telephone?`<a href="https://wa.me/${t.telephone}?text=${encodeURIComponent(waMsg(ri))}" target="_blank" class="btn btn-w btn-sm">💬 WA</a>`:''} ${myOTs.length?`<button class="btn btn-g btn-sm" onclick="togOTs(this,${ri})">📋 (${myOTs.length})</button>`:''}<button class="btn btn-g btn-sm" onclick="focTech(${ri})">🗺</button><button class="btn btn-d btn-sm" onclick="delTech(${ri})">✕</button></div>${myOTs.length?`<div class="tc-ots" id="tc-ots-${ri}">${myOTs.map(o=>`<div class="tc-ot">📍 ${o.cp} – ${o.label}</div>`).join('')}</div>`:''}`;
     c.appendChild(d);
   });
@@ -1127,6 +1145,72 @@ function exportDispatch(){
   XLSX.writeFile(wb,'FiberDispatch_'+new Date().toISOString().slice(0,10)+'.xlsx');
   toast('Export Excel généré ✓','success');
 }
+
+document.getElementById('extExcel').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  const statusEl=document.getElementById('ext-status');
+  statusEl.textContent='Lecture en cours…';
+  const reader=new FileReader();
+  reader.onload=evt=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+      // cols: 0=MO,1=Bloque,2=Code,3=Nom,4=Prenom,5=St,6=Note,7=.,8=Adresse,9=CP,10=Ville,11=GSM,12=Tel,13=Email,14=Secteur
+      let added=0,skipped=0;
+      const extTechs=[];
+      rows.slice(1).forEach(r=>{
+        const nom=(r[3]||'').toString().trim();
+        const prenom=(r[4]||'').toString().trim();
+        if(!nom&&!prenom){skipped++;return;}
+        const fullNom=`${prenom} ${nom}`.trim();
+        const cp=(r[9]||'').toString().trim();
+        const ville=(r[10]||'').toString().trim();
+        const gsm=(r[11]||'').toString().trim().replace(/[^0-9+]/g,'');
+        const tel=(r[12]||'').toString().trim().replace(/[^0-9+]/g,'');
+        const phone=gsm||tel;
+        const email=(r[13]||'').toString().trim();
+        const secteurRaw=(r[14]||'').toString().trim();
+        const secteurs=secteurRaw?secteurRaw.split(/[;,]/).map(s=>s.trim()).filter(Boolean):[];
+        // Format phone to international
+        let telFmt=phone.replace(/^0/,'33').replace(/[^0-9]/g,'');
+        const t={
+          nom:fullNom,societe:'Base nationale',telephone:telFmt,
+          email,codePostal:cp,ville,secteurs,
+          competences:['fibre'],statut:'OK',type:'externe'
+        };
+        extTechs.push(t);added++;
+      });
+      // Remove old externes, add new ones
+      techs=techs.filter(t=>t.type!=='externe');
+      Object.keys(tMkrs).forEach(k=>{if(techs[k]&&techs[k].type==='externe'){map.removeLayer(tMkrs[k]);delete tMkrs[k];}});
+      techs=techs.concat(extTechs);
+      // Place markers (hidden by default)
+      extTechs.forEach((t,i)=>{
+        const realIdx=techs.indexOf(t);
+        if(!t.lat&&!t.lon&&t.codePostal){
+          geocode(t.codePostal).then(c=>{if(c){t.lat=c.lat;t.lon=c.lon;addExtMarker(realIdx,t);}});
+        }
+      });
+      save();renderTechList();updateStats();
+      statusEl.textContent=`✓ ${added} techniciens importés (${skipped} ignorés)`;
+      toast(`${added} techniciens de la base nationale importés`,'success');
+      localStorage.setItem('fo_ext_techs','loaded');
+    }catch(err){
+      statusEl.textContent='Erreur: '+err.message;
+      toast('Erreur lors de l\'import','error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+function addExtMarker(idx,t){
+  if(!t.lat||!t.lon)return;
+  const m=L.marker([t.lat,t.lon],{icon:tIcon(t.type,false)});
+  m.bindPopup(tPopup(t,idx));
+  if(!showExt){// keep hidden until toggled
+  }else{m.addTo(map);}
+  tMkrs[idx]=m;
+}
+
 function exportAg(){
   const dayI=itvs.filter(i=>i.date===agStr());if(!dayI.length){toast('Aucune intervention ce jour','error');return;}
   const ws=XLSX.utils.json_to_sheet(dayI);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Agenda');
@@ -1153,6 +1237,34 @@ async function saveTech(){
   if(t.lat&&t.lon){const m=L.marker([t.lat,t.lon],{icon:tIcon(t.type,false)});m.bindPopup(tPopup(t,ni));m.addTo(map);tMkrs[ni]=m;}
   closeModal();renderTechList();updateStats();save();toast(`${nom} ajouté`,'success');
   ['m-nom','m-soc','m-tel','m-email','m-cp','m-ville','m-sects','m-comps'].forEach(id=>document.getElementById(id).value='');
+}
+
+// ═══════════════════════════════════
+// EXTERNAL TECHS (BASE NATIONALE)
+// ═══════════════════════════════════
+function toggleExt(btn){
+  showExt=!showExt;
+  btn.textContent=showExt?'👁 Masquer nationale':'👁 Base nationale';
+  btn.style.background=showExt?'var(--red)':'var(--rdim)';
+  btn.style.color=showExt?'#fff':'var(--red)';
+  renderTechList();
+  // Show/hide markers on map
+  techs.forEach((t,i)=>{
+    if(t.type==='externe'&&tMkrs[i]){
+      if(showExt){map.addLayer(tMkrs[i]);}
+      else{map.removeLayer(tMkrs[i]);}
+    }
+  });
+}
+function clearExtTechs(){
+  if(!confirm('Supprimer toute la base nationale ? Les techniciens Marie Blachère ne seront pas affectés.'))return;
+  // Remove markers
+  techs.forEach((t,i)=>{if(t.type==='externe'&&tMkrs[i]){map.removeLayer(tMkrs[i]);delete tMkrs[i];}});
+  techs=techs.filter(t=>t.type!=='externe');
+  localStorage.removeItem('fo_ext_techs');
+  renderTechList();updateStats();save();
+  document.getElementById('ext-status').textContent='Base nationale supprimée';
+  toast('Base nationale supprimée','info');
 }
 
 // ═══════════════════════════════════
