@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FiberDispatch — Gestion Techniciens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #0d0f14;
+  --surface: #141720;
+  --surface2: #1c2030;
+  --surface3: #242840;
+  --border: #2a2f45;
+  --border2: #363d5a;
+  --text: #e8ecf4;
+  --text2: #8890aa;
+  --text3: #555e7a;
+  --accent: #4f8ef7;
+  --accent2: #3a6fd4;
+  --green: #2dd4a0;
+  --green-dim: rgba(45,212,160,0.15);
+  --blue: #4f8ef7;
+  --blue-dim: rgba(79,142,247,0.15);
+  --orange: #f5a623;
+  --orange-dim: rgba(245,166,35,0.15);
+  --red: #f75555;
+  --red-dim: rgba(247,85,85,0.15);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,0.15);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+#header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 100;
+}
+#header h1 {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#header h1 span { color: var(--accent); }
+.header-stats {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.hstat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text2);
+  font-size: 12px;
+}
+.hstat strong {
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--font-head);
+  font-weight: 700;
+}
+.header-actions { display: flex; gap: 8px; }
+
+/* ── LAYOUT ── */
+#app {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── LEFT PANEL ── */
+#left-panel {
+  width: 380px;
+  min-width: 320px;
+  max-width: 420px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  padding: 12px 8px;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tab-btn:hover { color: var(--text2); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.tab-content.active { display: flex; }
+
+/* ── OT IMPORT ── */
+#ot-import-section {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#ot-import-section label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+#ot-textarea {
+  width: 100%;
+  height: 90px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+}
+#ot-textarea:focus { border-color: var(--accent); }
+#ot-textarea::placeholder { color: var(--text3); }
+.import-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+/* ── OT LIST ── */
+#ot-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+#ot-list-container::-webkit-scrollbar { width: 4px; }
+#ot-list-container::-webkit-scrollbar-track { background: transparent; }
+#ot-list-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.ot-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.18s;
+  position: relative;
+}
+.ot-item:hover { border-color: var(--accent); background: var(--surface3); }
+.ot-item.selected { border-color: var(--accent); background: rgba(79,142,247,0.08); }
+.ot-item.assigned { border-color: var(--green); }
+.ot-item.assigned::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--green);
+  border-radius: 3px 0 0 3px;
+}
+.ot-cp {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+}
+.ot-label {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ot-assigned-to {
+  font-size: 10px;
+  color: var(--green);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ot-actions-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ── TECH LIST ── */
+#tech-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+#tech-list-container::-webkit-scrollbar { width: 4px; }
+#tech-list-container::-webkit-scrollbar-track { background: transparent; }
+#tech-list-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.tech-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  transition: border-color 0.18s;
+}
+.tech-item.type-actuel { border-left: 3px solid var(--green); }
+.tech-item.type-nouveau { border-left: 3px solid var(--blue); }
+.tech-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.tech-name {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 13px;
+}
+.tech-societe {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+.tech-count {
+  background: var(--surface3);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.tech-count.has-ot {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.tech-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.tech-actions-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.tech-ots-list {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+.tech-ots-list.open { display: block; }
+.tech-ot-entry {
+  font-size: 10px;
+  color: var(--text2);
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── RIGHT PANEL ── */
+#right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+#map {
+  flex: 1;
+  z-index: 1;
+}
+
+/* ── ASSIGN PANEL (floating) ── */
+#assign-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 300px;
+  max-height: calc(100vh - 80px);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+#assign-panel.open { display: flex; }
+#assign-panel-header {
+  padding: 12px 14px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+#assign-panel-title {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 13px;
+}
+#assign-panel-subtitle {
+  font-size: 10px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+#assign-panel-close {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+}
+#assign-panel-close:hover { color: var(--text); }
+#assign-panel-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+}
+#assign-panel-list::-webkit-scrollbar { width: 4px; }
+#assign-panel-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.assign-tech-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  transition: border-color 0.15s;
+}
+.assign-tech-item:hover { border-color: var(--border2); }
+.assign-tech-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.assign-tech-name {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 12px;
+}
+.assign-tech-dist {
+  font-size: 10px;
+  color: var(--text3);
+}
+.assign-tech-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 5px 0;
+}
+.assign-btn {
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* ── MODAL ── */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#modal-overlay.open { display: flex; }
+#modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+#modal h2 {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+.form-row { margin-bottom: 14px; }
+.form-row label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  margin-bottom: 5px;
+}
+.form-row input, .form-row select, .form-row textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-row input:focus,
+.form-row select:focus,
+.form-row textarea:focus { border-color: var(--accent); }
+.form-row select option { background: var(--surface2); }
+.form-row textarea { height: 60px; resize: none; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent2); }
+.btn-success { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+.btn-success:hover:not(:disabled) { background: var(--green); color: #0d0f14; }
+.btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--border2); color: var(--text); }
+.btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+.btn-danger:hover:not(:disabled) { background: var(--red); color: #fff; }
+.btn-whatsapp { background: rgba(37,211,102,0.15); color: #25d366; border: 1px solid #25d366; }
+.btn-whatsapp:hover:not(:disabled) { background: #25d366; color: #fff; }
+.btn-sm { padding: 4px 8px; font-size: 10px; }
+.btn-lg { padding: 9px 18px; font-size: 12px; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-ok { background: var(--green-dim); color: var(--green); }
+.badge-ref { background: var(--blue-dim); color: var(--blue); }
+.badge-refus { background: var(--red-dim); color: var(--red); }
+.badge-ref2 { background: var(--orange-dim); color: var(--orange); }
+.badge-contact { background: var(--purple-dim); color: var(--purple); }
+.badge-actuel { background: var(--green-dim); color: var(--green); }
+.badge-nouveau { background: var(--blue-dim); color: var(--blue); }
+.badge-sector { background: rgba(167,139,250,0.15); color: var(--purple); }
+.badge-proche { background: var(--orange-dim); color: var(--orange); }
+.badge-skill { background: var(--surface3); color: var(--text2); border: 1px solid var(--border); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text3);
+}
+.empty-state .icon { font-size: 28px; margin-bottom: 8px; }
+.empty-state p { font-size: 11px; line-height: 1.5; }
+
+/* ── MAP LEGEND ── */
+#map-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  z-index: 999;
+  font-size: 11px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+  color: var(--text2);
+}
+.legend-item:last-child { margin-bottom: 0; }
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  z-index: 3000;
+  font-size: 12px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.25s;
+  pointer-events: none;
+  max-width: 280px;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+#toast.success { border-color: var(--green); color: var(--green); }
+#toast.error { border-color: var(--red); color: var(--red); }
+#toast.info { border-color: var(--accent); color: var(--accent); }
+
+/* ── SEARCH ── */
+.search-box {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.search-box input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 7px 10px;
+  outline: none;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-box input::placeholder { color: var(--text3); }
+
+/* ── LEAFLET OVERRIDES ── */
+.leaflet-popup-content-wrapper {
+  background: var(--surface) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+  font-family: var(--font-mono) !important;
+}
+.leaflet-popup-tip { background: var(--surface) !important; }
+.leaflet-popup-content { margin: 10px 14px !important; font-size: 12px !important; }
+.leaflet-container { background: #1a1e2e; }
+.leaflet-tile { filter: brightness(0.7) saturate(0.6); }
+
+/* Scrollbar global */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* Geocoding spinner */
+.geocoding-indicator {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text3);
+  padding: 4px 0;
+}
+.geocoding-indicator.active { display: flex; }
+.spinner {
+  width: 10px; height: 10px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.tech-filter-row {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.filter-chip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.filter-chip:hover { border-color: var(--border2); color: var(--text2); }
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.section-title {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+.divider { height: 1px; background: var(--border); margin: 4px 8px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>⚡ Fiber<span>Dispatch</span></h1>
+  <div class="header-stats">
+    <div class="hstat"><strong id="stat-tech">0</strong> techniciens</div>
+    <div class="hstat"><strong id="stat-ot">0</strong> interventions</div>
+    <div class="hstat"><strong id="stat-assigned">0</strong> assignées</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="openAddTechModal()">+ Technicien</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportExcel()">↓ Export Excel</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearAll()">✕ Réinitialiser</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <div class="panel-tabs">
+      <button class="tab-btn active" onclick="switchTab('ot')">📋 Interventions</button>
+      <button class="tab-btn" onclick="switchTab('tech')">👷 Techniciens</button>
+    </div>
+
+    <!-- TAB: OT -->
+    <div id="tab-ot" class="tab-content active">
+      <div id="ot-import-section">
+        <label>Coller les interventions (CP – Raison sociale)</label>
+        <textarea id="ot-textarea" placeholder="82200 – Marie Blachère CAUSSADE&#10;31000 – Boulangerie Paul&#10;75001 – FNAC Paris"></textarea>
+        <div class="import-actions">
+          <button class="btn btn-primary btn-sm" onclick="importOTs()">▶ Importer</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearOTs()">✕ Vider</button>
+          <div class="geocoding-indicator" id="geocoding-spinner">
+            <div class="spinner"></div> Géocodage…
+          </div>
+        </div>
+      </div>
+      <div class="section-title">Liste des interventions</div>
+      <div id="ot-list-container">
+        <div class="empty-state">
+          <div class="icon">📍</div>
+          <p>Collez vos interventions ci-dessus<br>et cliquez sur Importer</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: TECH -->
+    <div id="tab-tech" class="tab-content">
+      <div class="search-box">
+        <input type="text" id="tech-search" placeholder="Rechercher un technicien…" oninput="renderTechList()">
+      </div>
+      <div class="tech-filter-row">
+        <button class="filter-chip active" data-filter="all" onclick="setTechFilter('all', this)">Tous</button>
+        <button class="filter-chip" data-filter="actuel" onclick="setTechFilter('actuel', this)">Actuels</button>
+        <button class="filter-chip" data-filter="nouveau" onclick="setTechFilter('nouveau', this)">Nouveaux</button>
+        <button class="filter-chip" data-filter="OK" onclick="setTechFilter('OK', this)">OK</button>
+        <button class="filter-chip" data-filter="Refus" onclick="setTechFilter('Refus', this)">Refus</button>
+      </div>
+      <div id="tech-list-container"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL (MAP) -->
+  <div id="right-panel">
+    <div id="map"></div>
+    <div id="map-legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#2dd4a0"></div> Technicien actuel
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#4f8ef7"></div> Nouveau sous-traitant
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f5a623"></div> Intervention
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f75555"></div> Intervention assignée
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN PANEL (floating) -->
+<div id="assign-panel">
+  <div id="assign-panel-header">
+    <div>
+      <div id="assign-panel-title">Assigner</div>
+      <div id="assign-panel-subtitle"></div>
+    </div>
+    <button id="assign-panel-close" onclick="closeAssignPanel()">✕</button>
+  </div>
+  <div id="assign-panel-list"></div>
+</div>
+
+<!-- MODAL ADD TECH -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <h2>+ Ajouter un technicien</h2>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Nom</label>
+        <input type="text" id="f-nom" placeholder="Dupont Jean">
+      </div>
+      <div class="form-row">
+        <label>Société</label>
+        <input type="text" id="f-societe" placeholder="Fibre Pro SARL">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Téléphone</label>
+        <input type="text" id="f-tel" placeholder="0612345678">
+      </div>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" id="f-email" placeholder="jean@mail.fr">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Code Postal</label>
+        <input type="text" id="f-cp" placeholder="75001">
+      </div>
+      <div class="form-row">
+        <label>Ville</label>
+        <input type="text" id="f-ville" placeholder="Paris">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Secteurs (départements séparés par virgule)</label>
+      <input type="text" id="f-secteurs" placeholder="75, 92, 93, 94">
+    </div>
+    <div class="form-row">
+      <label>Compétences (séparées par virgule)</label>
+      <input type="text" id="f-competences" placeholder="fibre, soudure, gc">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Statut</label>
+        <select id="f-statut">
+          <option>OK</option>
+          <option>Référencé</option>
+          <option>Réflexion</option>
+          <option>Refus</option>
+          <option>Contact</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Type</label>
+        <select id="f-type">
+          <option value="actuel">Actuel</option>
+          <option value="nouveau">Nouveau</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModalDirect()">Annuler</button>
+      <button class="btn btn-primary btn-lg" onclick="saveTech()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+
+const TECHS_DEFAULT = [
+  {"nom":"Seidou SISSOKO","societe":"SLS","telephone":"33662459177","email":"slsenergy92@gmail.com","codePostal":"92140","ville":"Clamart","secteurs":["28","60","45","27","89","75","92","93","94","95","77","91","78"],"competences":["fibre","cablage","baie"],"statut":"Référencé","type":"actuel"},
+  {"nom":"M'HAND ABDELFETTAH","societe":"Technodym","telephone":"33666171814","email":"mhand@technodym.fr","codePostal":"75008","ville":"Paris","secteurs":["75","50","59","14","27","89","10"],"competences":["fibre","cablage","baie"],"statut":"OK","type":"actuel"},
+  {"nom":"Shamir MSELAM","societe":"SLS","telephone":"33660165567","email":"shamir.ms92@gmail.com","codePostal":"92140","ville":"Clamart","secteurs":["92"],"competences":["fibre"],"statut":"OK","type":"actuel"},
+  {"nom":"Yanis BENALI","societe":"2DY","telephone":"33758841971","email":"yanisgarzen@gmail.com","codePostal":"69100","ville":"Villeurbanne","secteurs":["69","38","01","74","73","26","07","42","43","63","71"],"competences":["fibre","gc","cablage"],"statut":"OK","type":"actuel"},
+  {"nom":"Anis IKROUBERKANE","societe":"Technodym","telephone":"33605537690","email":"anis@technodym.fr","codePostal":"76600","ville":"Elbeuf","secteurs":["76","59","62","80","14","72","61","57","54","10","69"],"competences":["fibre","gc"],"statut":"OK","type":"actuel"},
+  {"nom":"Lamine CHAOUCHE","societe":"Technodym","telephone":"33661027811","email":"lamine@technodym.fr","codePostal":"76500","ville":"Elbeuf","secteurs":["76"],"competences":["fibre"],"statut":"OK","type":"actuel"},
+  {"nom":"Nadir SLAMNIA","societe":"RTF","telephone":"33610963732","email":"slamnianadir.rtf@outlook.fr","codePostal":"31000","ville":"Toulouse","secteurs":["31"],"competences":["fibre"],"statut":"OK","type":"actuel"},
+  {"nom":"Patrick GROLLIER","societe":"Oumar","telephone":"33623508918","email":"grollier67@hotmail.fr","codePostal":"59100","ville":"Roubaix","secteurs":["59","62"],"competences":["fibre"],"statut":"OK","type":"actuel"},
+  {"nom":"Arezki BOUDADA","societe":"RTF","telephone":"33767522333","email":"boudada.arezki@outlook.fr","codePostal":"13004","ville":"Marseille","secteurs":["13","83","84","06","30","34","04","26"],"competences":["fibre","gc"],"statut":"OK","type":"actuel"},
+  {"nom":"Jaouhar ABICHOU","societe":"LJ TCE","telephone":"33642656565","email":"ljtcebat@gmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF","28","02","45","89"],"competences":["courant fort","fibre","soudure","cablage","gc"],"statut":"OK","type":"nouveau"},
+  {"nom":"Julie KANZA","societe":"SMTI","telephone":"33650481662","email":"jules.smti@gmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["fibre","cablage","baie","soudure","caces","gc","electricite"],"statut":"OK","type":"nouveau"},
+  {"nom":"Hamza SAIB","societe":"IH","telephone":"33651073227","email":"saib.hamza@hotmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["fibre","cablage","baie","soudure","caces","gc"],"statut":"Référencé","type":"nouveau"},
+  {"nom":"Yassine KHELIFI","societe":"KBB","telephone":"33644696910","email":"yassine@k-b-b.fr","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["courant fort","baie","gc"],"statut":"Refus","type":"nouveau"},
+  {"nom":"Wael HERMI","societe":"JS Connect","telephone":"33652927131","email":"wael.hermi@jsconnect.fr","codePostal":"","ville":"Pays de la Loire","secteurs":["pays de la loire","sud","NA"],"competences":["courant fort","caces","baie","fibre"],"statut":"OK","type":"nouveau"},
+  {"nom":"Abdelmalik BENMECHEDDAL","societe":"MS FIBER","telephone":"33651572117","email":"contactmsfiber@gmail.com","codePostal":"","ville":"Nord","secteurs":["59","62","02","08","80","54","57","51","88"],"competences":["fibre","cablage","baie","caces"],"statut":"OK","type":"nouveau"},
+  {"nom":"Oumar DIALLO","societe":"Fibre OD","telephone":"33652423059","email":"fibreod@gmail.com","codePostal":"","ville":"Haute-Garonne","secteurs":["31"],"competences":["fibre","gc","soudure","electricite"],"statut":"OK","type":"nouveau"},
+  {"nom":"Driss KCI","societe":"French Connexion","telephone":"33651513079","email":"driss.k691@gmail.com","codePostal":"","ville":"Rhône-Alpes","secteurs":["69","01","42","38","73","74"],"competences":["baie","fibre","soudure","cablage","gc","caces"],"statut":"OK","type":"nouveau"},
+  {"nom":"Zakaria MAROUF","societe":"GOFIBRE","telephone":"33663195800","email":"marouf.z@hotmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["fibre","cablage"],"statut":"OK","type":"nouveau"},
+  {"nom":"Mourad FOUDI","societe":"HM FIBRE","telephone":"33781442901","email":"hmfibre@gmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["fibre","cablage","soudure","courant fort","baie"],"statut":"OK","type":"nouveau"},
+  {"nom":"Jihad OUFADEM","societe":"Green Riviera","telephone":"33763673937","email":"contact@greenriviera.fr","codePostal":"","ville":"Sud-Ouest","secteurs":["40","64"],"competences":["fibre","soudure","cablage","gc","courant fort","caces","baie"],"statut":"OK","type":"nouveau"},
+  {"nom":"Nabil ZAHER","societe":"Znfibre","telephone":"33665922397","email":"znfibre@gmail.com","codePostal":"","ville":"France","secteurs":["21","71","39","25","51"],"competences":["fibre","cablage","baie","soudure","caces","gc","electricite"],"statut":"OK","type":"nouveau"},
+  {"nom":"Diogo SANTOS","societe":"Polykabel","telephone":"33763730867","email":"diogo.santos@polykabel.fr","codePostal":"","ville":"Europe","secteurs":["FR","EU"],"competences":["fibre","cablage","baie","soudure","caces","gc","courant fort"],"statut":"OK","type":"nouveau"},
+  {"nom":"Jonathan POULAIN","societe":"ELINACOM","telephone":"33621621656","email":"poulain.jonathan@elinacom.com","codePostal":"","ville":"Nord","secteurs":["59","62"],"competences":["fibre","gc","caces","courant fort"],"statut":"OK","type":"nouveau"},
+  {"nom":"Bonheur M'SA","societe":"Bonheur M'sa","telephone":"33782007654","email":"msabonheur@gmail.com","codePostal":"","ville":"Sud-Est","secteurs":["13","84","30","83","06","04","05"],"competences":["fibre","soudure","baie","gc","courant fort"],"statut":"OK","type":"nouveau"},
+  {"nom":"Daniel DA SILVA","societe":"TECHNOTEL","telephone":"33680668131","email":"daniel.dasilva@technotel-sas.fr","codePostal":"","ville":"Île-de-France","secteurs":["IDF","national"],"competences":["fibre","soudure","gc","caces","cablage"],"statut":"OK","type":"nouveau"},
+  {"nom":"Murat BALABAN / Cenk BARUT","societe":"NC FIBRE OPTIQUE","telephone":"33782867716","email":"mbalaban@ncfibreoptique.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF","national"],"competences":["fibre","gc"],"statut":"OK","type":"nouveau"},
+  {"nom":"Sofiane AMOKRANE","societe":"Indépendant","telephone":"33761471202","email":"fartas10@yahoo.fr","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["fibre","soudure","gc"],"statut":"OK","type":"nouveau"},
+  {"nom":"Rachid AKHERRAZ","societe":"OPTICAL NETWORKS","telephone":"33786304753","email":"","codePostal":"","ville":"IDF / Nouvelle-Aquitaine","secteurs":["IDF","NA"],"competences":["cablage","gc","fibre","baie","courant fort","caces"],"statut":"OK","type":"nouveau"},
+  {"nom":"Omar EL ARAOUI","societe":"ECO FIBER","telephone":"33659835985","email":"elcofiber95@gmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["cablage","fibre","gc","soudure","courant fort","baie"],"statut":"OK","type":"nouveau"},
+  {"nom":"Soufiane OULID","societe":"NGE ENERGIES SOLUTIONS","telephone":"33617259708","email":"soulid@nge-es.fr","codePostal":"","ville":"Nice / National","secteurs":["06","83","13","national"],"competences":["courant fort","fibre","soudure","baie","gc","caces"],"statut":"Réflexion","type":"nouveau"},
+  {"nom":"Nordine KAABACHE","societe":"KDCOM INNOVATION","telephone":"33769237567","email":"equinoxgroup.entreprise@gmail.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["cablage","gc","fibre","courant fort","mesure"],"statut":"OK","type":"nouveau"},
+  {"nom":"Vincent DE SOUZA","societe":"ATMOS","telephone":"33619931436","email":"vdesouza@atmos-sasu.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF","45","10","60","27","28","51","89"],"competences":["fibre","soudure","cablage","gc","courant fort","caces","baie"],"statut":"OK","type":"nouveau"},
+  {"nom":"Fakher JAAOUANE","societe":"FABENSA","telephone":"33780484774","email":"fakher.jaaouane@fabensa.fr","codePostal":"","ville":"France","secteurs":["06","83","89","77","45","10"],"competences":["fibre","cablage","soudure","gc","baie","caces"],"statut":"OK","type":"nouveau"},
+  {"nom":"So Thy NGUON","societe":"STN","telephone":"33768700725","email":"stnguon@stn-it.fr","codePostal":"","ville":"Rhône-Alpes","secteurs":["69","42","03","01","38","73","74","71"],"competences":["fibre","cablage","soudure","baie","courant fort"],"statut":"OK","type":"nouveau"},
+  {"nom":"Elodie ERNST","societe":"Indépendant","telephone":"","email":"","codePostal":"11100","ville":"Narbonne","secteurs":["11"],"competences":[],"statut":"Contact","type":"nouveau"},
+  {"nom":"Nadir MOUASI","societe":"Solution TELECOM","telephone":"33713169601","email":"contact@st-2a.com","codePostal":"","ville":"Île-de-France","secteurs":["IDF","76","60","28","27"],"competences":["radio","fibre","cablage","baie","soudure","gc","caces","courant fort"],"statut":"OK","type":"nouveau"},
+  {"nom":"Moussa ABDERRAHMAN","societe":"ARIA SERVICES","telephone":"33663304620","email":"abderrahman.moussa@ariaservices-france.fr","codePostal":"","ville":"Île-de-France","secteurs":["IDF"],"competences":["courant fort","fibre","soudure","baie","cablage","gc","caces"],"statut":"OK","type":"nouveau"}
+];
+
+// IDF department mapping
+const IDF_DEPTS = ["75","77","78","91","92","93","94","95"];
+const NA_DEPTS = ["16","17","19","23","24","33","40","47","64","79","86","87"];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let techs = [];
+let ots = [];
+let assignments = {}; // { techIndex: [otIndex, ...] }
+let map, techMarkers = {}, otMarkers = {};
+let selectedOT = null;
+let techFilter = 'all';
+let geocodeCache = {};
+
+// ═══════════════════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+function saveState() {
+  try {
+    localStorage.setItem('fd_techs', JSON.stringify(techs));
+    localStorage.setItem('fd_ots', JSON.stringify(ots));
+    localStorage.setItem('fd_assignments', JSON.stringify(assignments));
+    localStorage.setItem('fd_geocache', JSON.stringify(geocodeCache));
+  } catch(e) {}
+}
+function loadState() {
+  try {
+    const t = localStorage.getItem('fd_techs');
+    const o = localStorage.getItem('fd_ots');
+    const a = localStorage.getItem('fd_assignments');
+    const g = localStorage.getItem('fd_geocache');
+    techs = t ? JSON.parse(t) : JSON.parse(JSON.stringify(TECHS_DEFAULT));
+    ots = o ? JSON.parse(o) : [];
+    assignments = a ? JSON.parse(a) : {};
+    geocodeCache = g ? JSON.parse(g) : {};
+  } catch(e) {
+    techs = JSON.parse(JSON.stringify(TECHS_DEFAULT));
+    ots = [];
+    assignments = {};
+    geocodeCache = {};
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════════════════════════
+function initMap() {
+  map = L.map('map', { zoomControl: true }).setView([46.5, 2.5], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(map);
+}
+
+function createTechIcon(type) {
+  const color = type === 'actuel' ? '#2dd4a0' : '#4f8ef7';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;background:${color};border:2px solid rgba(255,255,255,0.6);border-radius:50%;box-shadow:0 0 6px ${color}88;"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+}
+
+function createOTIcon(assigned) {
+  const color = assigned ? '#f75555' : '#f5a623';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:16px;height:16px;background:${color};border:2px solid rgba(255,255,255,0.7);border-radius:3px;transform:rotate(45deg);box-shadow:0 0 6px ${color}88;"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// GEOCODING
+// ═══════════════════════════════════════════════════════════
+async function geocodeCP(cp, ville) {
+  const key = cp + '_' + ville;
+  if (geocodeCache[key]) return geocodeCache[key];
+  
+  // Try by CP first
+  const queries = [];
+  if (cp && cp.length >= 4) queries.push(`postalcode=${encodeURIComponent(cp)}&countrycodes=fr`);
+  if (ville) queries.push(`city=${encodeURIComponent(ville)}&countrycodes=fr`);
+  
+  for (const q of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?${q}&format=json&limit=1`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'fr' } });
+      const data = await res.json();
+      if (data && data[0]) {
+        const result = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        geocodeCache[key] = result;
+        return result;
+      }
+    } catch(e) {}
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLACE TECH MARKERS
+// ═══════════════════════════════════════════════════════════
+async function placeTechMarkers() {
+  // Remove existing
+  Object.values(techMarkers).forEach(m => map.removeLayer(m));
+  techMarkers = {};
+
+  for (let i = 0; i < techs.length; i++) {
+    const t = techs[i];
+    let coords = null;
+
+    if (t.lat && t.lon) {
+      coords = { lat: t.lat, lon: t.lon };
+    } else if (t.codePostal || t.ville) {
+      coords = await geocodeCP(t.codePostal, t.ville);
+      if (coords) {
+        techs[i].lat = coords.lat;
+        techs[i].lon = coords.lon;
+      }
+    }
+
+    if (coords) {
+      const marker = L.marker([coords.lat, coords.lon], { icon: createTechIcon(t.type) });
+      const statusBadge = getStatusBadge(t.statut);
+      marker.bindPopup(`
+        <div style="min-width:160px">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:4px">${t.nom}</div>
+          <div style="color:#8890aa;font-size:11px;margin-bottom:4px">${t.societe} · ${t.ville}</div>
+          <div style="margin-bottom:6px">${statusBadge}</div>
+          <div style="font-size:10px;color:#8890aa">Secteurs: ${t.secteurs.join(', ')}</div>
+          <div style="font-size:10px;color:#8890aa;margin-top:2px">Compétences: ${t.competences.join(', ')}</div>
+        </div>
+      `);
+      marker.addTo(map);
+      techMarkers[i] = marker;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLACE OT MARKERS
+// ═══════════════════════════════════════════════════════════
+function placeOTMarker(idx) {
+  const ot = ots[idx];
+  if (!ot.lat || !ot.lon) return;
+
+  if (otMarkers[idx]) map.removeLayer(otMarkers[idx]);
+
+  const assignedTo = getAssignedTechForOT(idx);
+  const marker = L.marker([ot.lat, ot.lon], { icon: createOTIcon(!!assignedTo) });
+  marker.bindPopup(`
+    <div style="min-width:150px">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px">${ot.cp}</div>
+      <div style="color:#8890aa;font-size:11px;margin-bottom:6px">${ot.label}</div>
+      ${assignedTo ? `<div style="color:#2dd4a0;font-size:10px">✓ Assigné: ${assignedTo}</div>` : ''}
+      <button onclick="openAssignPanel(${idx})" style="margin-top:8px;background:#4f8ef7;border:none;color:#fff;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:11px;width:100%">
+        ${assignedTo ? '↺ Réassigner' : '⚡ Assigner'}
+      </button>
+    </div>
+  `);
+  marker.on('click', () => openAssignPanel(idx));
+  marker.addTo(map);
+  otMarkers[idx] = marker;
+}
+
+// ═══════════════════════════════════════════════════════════
+// OT IMPORT
+// ═══════════════════════════════════════════════════════════
+async function importOTs() {
+  const raw = document.getElementById('ot-textarea').value.trim();
+  if (!raw) { showToast('Collez vos interventions d\'abord', 'error'); return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
+  const spinner = document.getElementById('geocoding-spinner');
+  spinner.classList.add('active');
+
+  let added = 0;
+  for (const line of lines) {
+    // Parse: "CP – label" or "CP - label"
+    const match = line.match(/^(\d{4,5})\s*[–\-]\s*(.+)$/);
+    if (!match) continue;
+
+    const cp = match[1].trim();
+    const label = match[2].trim();
+
+    // Avoid duplicates
+    const exists = ots.find(o => o.cp === cp && o.label === label);
+    if (exists) continue;
+
+    const ot = { cp, label, id: Date.now() + Math.random() };
+    const coords = await geocodeCP(cp, cp);
+    if (coords) { ot.lat = coords.lat; ot.lon = coords.lon; }
+
+    ots.push(ot);
+    placeOTMarker(ots.length - 1);
+    added++;
+    // small delay to not hammer Nominatim
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  spinner.classList.remove('active');
+  renderOTList();
+  updateStats();
+  saveState();
+  showToast(`${added} intervention(s) importée(s)`, 'success');
+}
+
+function clearOTs() {
+  if (!confirm('Supprimer toutes les interventions ?')) return;
+  Object.values(otMarkers).forEach(m => map.removeLayer(m));
+  otMarkers = {};
+  ots = [];
+  assignments = {};
+  selectedOT = null;
+  closeAssignPanel();
+  document.getElementById('ot-textarea').value = '';
+  renderOTList();
+  renderTechList();
+  updateStats();
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ASSIGNMENTS
+// ═══════════════════════════════════════════════════════════
+function assignOT(otIdx, techIdx) {
+  // Remove previous assignment for this OT
+  for (const key in assignments) {
+    const arr = assignments[key];
+    const i = arr.indexOf(otIdx);
+    if (i > -1) arr.splice(i, 1);
+  }
+  if (!assignments[techIdx]) assignments[techIdx] = [];
+  assignments[techIdx].push(otIdx);
+
+  placeOTMarker(otIdx); // refresh marker color
+  renderOTList();
+  renderTechList();
+  updateStats();
+  saveState();
+  closeAssignPanel();
+  showToast(`Assigné à ${techs[techIdx].nom}`, 'success');
+}
+
+function getAssignedTechForOT(otIdx) {
+  for (const key in assignments) {
+    if (assignments[key].includes(otIdx)) return techs[key].nom;
+  }
+  return null;
+}
+
+function getAssignedTechIdxForOT(otIdx) {
+  for (const key in assignments) {
+    if (assignments[key].includes(otIdx)) return parseInt(key);
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DISTANCE
+// ═══════════════════════════════════════════════════════════
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTOR MATCH
+// ═══════════════════════════════════════════════════════════
+function techMatchesSector(tech, otCP) {
+  const dept = otCP.length === 5 ? otCP.substring(0, 2) : otCP.substring(0, 2);
+  const deptNum = parseInt(dept);
+  const secteurs = tech.secteurs.map(s => s.toLowerCase().trim());
+
+  // Direct match
+  if (secteurs.includes(dept)) return true;
+  if (secteurs.includes(String(deptNum))) return true;
+
+  // IDF group
+  if (IDF_DEPTS.includes(dept) && secteurs.includes('idf')) return true;
+
+  // NA group
+  if (NA_DEPTS.includes(dept) && secteurs.includes('na')) return true;
+
+  // National
+  if (secteurs.includes('national') || secteurs.includes('fr') || secteurs.includes('eu')) return true;
+
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ASSIGN PANEL
+// ═══════════════════════════════════════════════════════════
+function openAssignPanel(otIdx) {
+  selectedOT = otIdx;
+  const ot = ots[otIdx];
+  document.getElementById('assign-panel-title').textContent = ot.cp;
+  document.getElementById('assign-panel-subtitle').textContent = ot.label;
+
+  // Score techs
+  const scored = techs.map((t, i) => {
+    let score = 0;
+    const inSector = techMatchesSector(t, ot.cp);
+    if (inSector) score += 1000;
+
+    let dist = null;
+    if (t.lat && t.lon && ot.lat && ot.lon) {
+      dist = haversine(t.lat, t.lon, ot.lat, ot.lon);
+      score -= dist;
+    }
+    return { tech: t, idx: i, score, dist, inSector };
+  }).sort((a, b) => b.score - a.score);
+
+  const list = document.getElementById('assign-panel-list');
+  list.innerHTML = '';
+
+  scored.forEach(({ tech, idx, dist, inSector }) => {
+    const statusBadge = getStatusBadge(tech.statut);
+    const typeBadge = `<span class="badge ${tech.type === 'actuel' ? 'badge-actuel' : 'badge-nouveau'}">${tech.type}</span>`;
+    const sectorBadge = inSector ? `<span class="badge badge-sector">⭐ secteur</span>` : `<span class="badge badge-proche">📍 proche</span>`;
+    const refusBadge = tech.statut === 'Refus' ? `<span class="badge badge-refus">❌ refus</span>` : '';
+    const distStr = dist !== null ? `${Math.round(dist)} km` : '? km';
+    const otCount = (assignments[idx] || []).length;
+    const assignedCount = otCount > 0 ? `<span style="color:var(--green);font-size:10px">${otCount} OT déjà assigné${otCount>1?'s':''}</span>` : '';
+
+    const div = document.createElement('div');
+    div.className = 'assign-tech-item';
+    div.innerHTML = `
+      <div class="assign-tech-header">
+        <div class="assign-tech-name">${tech.nom}</div>
+        <div class="assign-tech-dist">${distStr}</div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${tech.societe}</div>
+      <div class="assign-tech-badges">
+        ${statusBadge} ${typeBadge} ${sectorBadge} ${refusBadge}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">
+        ${tech.competences.map(c => `<span class="badge badge-skill">${c}</span>`).join('')}
+      </div>
+      ${assignedCount}
+      <button class="btn btn-success btn-sm btn-full assign-btn" onclick="assignOT(${otIdx}, ${idx})" ${tech.statut==='Refus'?'style="opacity:0.5"':''}>
+        ⚡ Assigner à ce technicien
+      </button>
+    `;
+    list.appendChild(div);
+  });
+
+  document.getElementById('assign-panel').classList.add('open');
+
+  // Highlight OT on map
+  if (ot.lat && ot.lon) map.setView([ot.lat, ot.lon], 10, { animate: true });
+}
+
+function closeAssignPanel() {
+  document.getElementById('assign-panel').classList.remove('open');
+  selectedOT = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER OT LIST
+// ═══════════════════════════════════════════════════════════
+function renderOTList() {
+  const container = document.getElementById('ot-list-container');
+  if (!ots.length) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📍</div><p>Collez vos interventions ci-dessus<br>et cliquez sur Importer</p></div>`;
+    return;
+  }
+  container.innerHTML = '';
+  ots.forEach((ot, idx) => {
+    const assignedTech = getAssignedTechForOT(idx);
+    const div = document.createElement('div');
+    div.className = `ot-item${assignedTech ? ' assigned' : ''}${selectedOT === idx ? ' selected' : ''}`;
+    div.innerHTML = `
+      <div class="ot-cp">${ot.cp}</div>
+      <div class="ot-label">${ot.label}</div>
+      ${assignedTech ? `<div class="ot-assigned-to">✓ ${assignedTech}</div>` : ''}
+      <div class="ot-actions-row">
+        <button class="btn btn-primary btn-sm" onclick="openAssignPanel(${idx})">⚡ Assigner</button>
+        <button class="btn btn-ghost btn-sm" onclick="focusOT(${idx})">🗺 Carte</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteOT(${idx})">✕</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function focusOT(idx) {
+  const ot = ots[idx];
+  if (ot.lat && ot.lon) {
+    map.setView([ot.lat, ot.lon], 12, { animate: true });
+    if (otMarkers[idx]) otMarkers[idx].openPopup();
+  }
+}
+
+function deleteOT(idx) {
+  if (otMarkers[idx]) map.removeLayer(otMarkers[idx]);
+  delete otMarkers[idx];
+  // Fix assignments
+  const newAssignments = {};
+  for (const k in assignments) {
+    newAssignments[k] = assignments[k].filter(i => i !== idx).map(i => i > idx ? i - 1 : i);
+  }
+  assignments = newAssignments;
+  ots.splice(idx, 1);
+  // Re-place markers with new indices
+  Object.values(otMarkers).forEach(m => map.removeLayer(m));
+  otMarkers = {};
+  ots.forEach((_, i) => placeOTMarker(i));
+  renderOTList();
+  renderTechList();
+  updateStats();
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER TECH LIST
+// ═══════════════════════════════════════════════════════════
+function renderTechList() {
+  const container = document.getElementById('tech-list-container');
+  const search = document.getElementById('tech-search').value.toLowerCase();
+
+  let filtered = techs.filter((t, i) => {
+    const matchFilter = techFilter === 'all' || t.type === techFilter || t.statut === techFilter;
+    const matchSearch = !search || t.nom.toLowerCase().includes(search) || t.societe.toLowerCase().includes(search) || t.ville.toLowerCase().includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">👷</div><p>Aucun technicien trouvé</p></div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  filtered.forEach(t => {
+    const realIdx = techs.indexOf(t);
+    const myOTs = assignments[realIdx] || [];
+    const statusBadge = getStatusBadge(t.statut);
+    const typeBadge = `<span class="badge ${t.type==='actuel'?'badge-actuel':'badge-nouveau'}">${t.type}</span>`;
+
+    const div = document.createElement('div');
+    div.className = `tech-item type-${t.type}`;
+    div.innerHTML = `
+      <div class="tech-item-header">
+        <div>
+          <div class="tech-name">${t.nom}</div>
+          <div class="tech-societe">${t.societe} · ${t.ville}</div>
+        </div>
+        <div class="tech-count ${myOTs.length > 0 ? 'has-ot' : ''}">${myOTs.length} OT</div>
+      </div>
+      <div class="tech-meta">
+        ${statusBadge} ${typeBadge}
+        ${t.secteurs.slice(0,4).map(s => `<span class="badge badge-skill">${s}</span>`).join('')}
+        ${t.secteurs.length > 4 ? `<span class="badge badge-skill">+${t.secteurs.length-4}</span>` : ''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
+        ${t.competences.slice(0,5).map(c => `<span class="badge badge-skill" style="font-size:9px">${c}</span>`).join('')}
+      </div>
+      <div class="tech-actions-row">
+        ${t.telephone ? `<a href="https://wa.me/${t.telephone}?text=${encodeURIComponent(buildWhatsAppMsg(realIdx))}" target="_blank" class="btn btn-whatsapp btn-sm">💬 WhatsApp</a>` : ''}
+        ${myOTs.length > 0 ? `<button class="btn btn-ghost btn-sm" onclick="toggleTechOTs(this, ${realIdx})">📋 Voir OT (${myOTs.length})</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="focusTech(${realIdx})">🗺</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTech(${realIdx})">✕</button>
+      </div>
+      ${myOTs.length > 0 ? `<div class="tech-ots-list" id="ots-${realIdx}">
+        ${myOTs.map(oi => ots[oi] ? `<div class="tech-ot-entry">📍 <span>${ots[oi].cp} – ${ots[oi].label}</span></div>` : '').join('')}
+      </div>` : ''}
+    `;
+    container.appendChild(div);
+  });
+}
+
+function toggleTechOTs(btn, idx) {
+  const list = document.getElementById(`ots-${idx}`);
+  if (!list) return;
+  list.classList.toggle('open');
+  btn.textContent = list.classList.contains('open') ? '▲ Masquer OT' : `📋 Voir OT (${(assignments[idx]||[]).length})`;
+}
+
+function focusTech(idx) {
+  const t = techs[idx];
+  if (t.lat && t.lon) {
+    map.setView([t.lat, t.lon], 11, { animate: true });
+    if (techMarkers[idx]) techMarkers[idx].openPopup();
+  }
+}
+
+function deleteTech(idx) {
+  if (!confirm(`Supprimer ${techs[idx].nom} ?`)) return;
+  if (techMarkers[idx]) map.removeLayer(techMarkers[idx]);
+  delete techMarkers[idx];
+  delete assignments[idx];
+  techs.splice(idx, 1);
+  renderTechList();
+  updateStats();
+  saveState();
+}
+
+function setTechFilter(f, btn) {
+  techFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderTechList();
+}
+
+// ═══════════════════════════════════════════════════════════
+// WHATSAPP
+// ═══════════════════════════════════════════════════════════
+function buildWhatsAppMsg(techIdx) {
+  const myOTs = (assignments[techIdx] || []).map(i => ots[i]).filter(Boolean);
+  let msg = "Bonjour, j'ai plusieurs interventions à vous proposer. Pouvez-vous me communiquer vos disponibilités (date et heure) pour planification s'il vous plaît ?\n\n";
+  if (myOTs.length) {
+    msg += myOTs.map(o => `📍 ${o.cp} – ${o.label}`).join('\n');
+  } else {
+    msg += "(Aucune intervention assignée pour le moment)";
+  }
+  return msg;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BADGES
+// ═══════════════════════════════════════════════════════════
+function getStatusBadge(statut) {
+  const map2 = {
+    'OK': 'badge-ok',
+    'Référencé': 'badge-ref',
+    'Refus': 'badge-refus',
+    'Réflexion': 'badge-ref2',
+    'Contact': 'badge-contact'
+  };
+  const cls = map2[statut] || 'badge-skill';
+  return `<span class="badge ${cls}">${statut}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════
+function updateStats() {
+  document.getElementById('stat-tech').textContent = techs.length;
+  document.getElementById('stat-ot').textContent = ots.length;
+  const assigned = Object.values(assignments).reduce((s, a) => s + a.length, 0);
+  document.getElementById('stat-assigned').textContent = assigned;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCH
+// ═══════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ADD TECH MODAL
+// ═══════════════════════════════════════════════════════════
+function openAddTechModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+async function saveTech() {
+  const nom = document.getElementById('f-nom').value.trim();
+  const societe = document.getElementById('f-societe').value.trim();
+  if (!nom) { showToast('Nom requis', 'error'); return; }
+
+  const cp = document.getElementById('f-cp').value.trim();
+  const ville = document.getElementById('f-ville').value.trim();
+  const secteurs = document.getElementById('f-secteurs').value.split(',').map(s => s.trim()).filter(Boolean);
+  const competences = document.getElementById('f-competences').value.split(',').map(s => s.trim()).filter(Boolean);
+
+  const tech = {
+    nom, societe,
+    telephone: document.getElementById('f-tel').value.trim().replace(/^0/, '33'),
+    email: document.getElementById('f-email').value.trim(),
+    codePostal: cp, ville,
+    secteurs, competences,
+    statut: document.getElementById('f-statut').value,
+    type: document.getElementById('f-type').value
+  };
+
+  // Geocode
+  if (cp || ville) {
+    const coords = await geocodeCP(cp, ville);
+    if (coords) { tech.lat = coords.lat; tech.lon = coords.lon; }
+  }
+
+  techs.push(tech);
+  const newIdx = techs.length - 1;
+
+  if (tech.lat && tech.lon) {
+    const marker = L.marker([tech.lat, tech.lon], { icon: createTechIcon(tech.type) });
+    marker.addTo(map);
+    techMarkers[newIdx] = marker;
+  }
+
+  closeModalDirect();
+  renderTechList();
+  updateStats();
+  saveState();
+  showToast(`${nom} ajouté`, 'success');
+
+  // Reset form
+  ['f-nom','f-societe','f-tel','f-email','f-cp','f-ville','f-secteurs','f-competences'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ═══════════════════════════════════════════════════════════
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  let hasData = false;
+
+  for (const key in assignments) {
+    const myOTs = assignments[key].map(i => ots[i]).filter(Boolean);
+    if (!myOTs.length) continue;
+    hasData = true;
+
+    const tech = techs[key];
+    const rows = [['Code Postal', 'Raison sociale', 'Technicien', 'Société']];
+    myOTs.forEach(ot => rows.push([ot.cp, ot.label, tech.nom, tech.societe]));
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 12 }, { wch: 40 }, { wch: 25 }, { wch: 20 }];
+    const safeName = tech.nom.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+    XLSX.utils.book_append_sheet(wb, ws, safeName);
+  }
+
+  // Summary sheet
+  const summaryRows = [['Technicien', 'Société', 'Nb OT', 'Interventions']];
+  for (const key in assignments) {
+    const myOTs = assignments[key].map(i => ots[i]).filter(Boolean);
+    if (!myOTs.length) continue;
+    const tech = techs[key];
+    summaryRows.push([tech.nom, tech.societe, myOTs.length, myOTs.map(o => `${o.cp} – ${o.label}`).join(' | ')]);
+  }
+  if (summaryRows.length > 1) {
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    wsSummary['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 8 }, { wch: 80 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'RECAP');
+    hasData = true;
+  }
+
+  if (!hasData) { showToast('Aucune assignation à exporter', 'error'); return; }
+  XLSX.writeFile(wb, `FiberDispatch_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Export Excel généré', 'success');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLEAR ALL
+// ═══════════════════════════════════════════════════════════
+function clearAll() {
+  if (!confirm('Réinitialiser toutes les données ? (Les techniciens seront conservés)')) return;
+  Object.values(otMarkers).forEach(m => map.removeLayer(m));
+  otMarkers = {};
+  ots = [];
+  assignments = {};
+  selectedOT = null;
+  closeAssignPanel();
+  document.getElementById('ot-textarea').value = '';
+  renderOTList();
+  renderTechList();
+  updateStats();
+  saveState();
+  showToast('Interventions effacées', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+async function init() {
+  loadState();
+  initMap();
+  renderTechList();
+  renderOTList();
+  updateStats();
+
+  // Place tech markers
+  await placeTechMarkers();
+
+  // Place OT markers
+  ots.forEach((_, i) => placeOTMarker(i));
+
+  saveState();
+}
+
+window.addEventListener('load', init);
+</script>
+
+</body>
+</html>
