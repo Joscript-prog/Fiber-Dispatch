@@ -470,7 +470,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
         <span style="font-size:11px;color:var(--txt3)">Profil :</span>
         <div class="profil-sw">
           <button class="psw-btn active" onclick="setProfil('jonathan',this)">Jonathan</button>
-          <button class="psw-btn" onclick="setProfil('sylvie',this)">Sylvie</button>
+          <button class="psw-btn" onclick="setProfil('nirina',this)">Nirina</button>
         </div>
       </div>
       <div class="mail-box">
@@ -530,9 +530,9 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
     <div class="set-card">
       <h3>👤 Profils mail</h3>
       <div class="fg"><label>Nom Jonathan</label><input id="p-jnom" value="Jonathan OTONIA"></div>
-      <div class="fg"><label>Nom Sylvie</label><input id="p-snom" value="Sylvie R"></div>
-      <div class="fg"><label>Email Sylvie</label><input id="p-semail" value="travaux-marieblacher@bugbusters.fr"></div>
-      <div class="fg"><label>Tel Sylvie</label><input id="p-stel" value="01 88 61 35 81"></div>
+      <div class="fg"><label>Nom Nirina</label><input id="p-nnom" value="Nirina A."></div>
+      <div class="fg"><label>Email Nirina</label><input id="p-nemail" value="travaux-marieblacher@bugbusters.fr"></div>
+      <div class="fg"><label>Tel Nirina</label><input id="p-ntel" value="01 88 61 35 81"></div>
       <button class="btn btn-g btn-sm" style="margin-top:10px" onclick="saveProfils()">💾 Sauvegarder</button>
     </div>
     <div class="set-card">
@@ -644,7 +644,7 @@ let showExt=false;
 let tMkrs={},otMkrs={},hlCircles=[];
 let selOT=null,tf='all',prevTab='rdv',profil='jonathan';
 let editId=null,agDate=new Date(),map;
-let profils={jonathan:{nom:"Jonathan OTONIA"},sylvie:{nom:"Sylvie R",email:"travaux-marieblacher@bugbusters.fr",tel:"01 88 61 35 81"}};
+let profils={jonathan:{nom:"Jonathan OTONIA"},nirina:{nom:"Nirina A.",email:"travaux-marieblacher@bugbusters.fr",tel:"01 88 61 35 81"}};
 
 // ═══════════════════════════════════
 // PERSIST
@@ -1022,7 +1022,7 @@ function updPrev(){
   const tech=v('f-tech'),infos=v('f-infos'),inter=v('f-inter');
   const dateF=dateStr?fmtDate(dateStr):'__/__/____';
   const pNom=profils[profil]?.nom||profil;
-  const pSuffix=profil==='sylvie'?`\n${profils.sylvie.email||''}\n${profils.sylvie.tel||''}`:'';
+  const pSuffix=profil==='nirina'?`\n${profils.nirina.email||''}\n${profils.nirina.tel||''}`:'';
   const tObj=techs.find(t=>t.nom===tech);
   const tPhone=tObj?.telephone?` – ${tObj.telephone}`:'';
   const isRocade=(v('f-type')==='TRAVAUX')&&inter.toUpperCase().includes('ROCADE');
@@ -1094,17 +1094,17 @@ async function delItv(id){
 // SETTINGS
 // ═══════════════════════════════════
 function saveProfils(){
-  profils.jonathan.nom=v('p-jnom');profils.sylvie.nom=v('p-snom');
-  profils.sylvie.email=v('p-semail');profils.sylvie.tel=v('p-stel');
+  profils.jonathan.nom=v('p-jnom');profils.nirina.nom=v('p-nnom');
+  profils.nirina.email=v('p-nemail');profils.nirina.tel=v('p-ntel');
   save();toast('Profils sauvegardés','success');
 }
 function loadSettings(){
   const cfg=JSON.parse(localStorage.getItem('firebaseConfig')||'{}');
   ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('fb_'+k);if(el&&cfg[k])el.value=cfg[k];});
   document.getElementById('p-jnom').value=profils.jonathan?.nom||'Jonathan OTONIA';
-  document.getElementById('p-snom').value=profils.sylvie?.nom||'Sylvie R';
-  document.getElementById('p-semail').value=profils.sylvie?.email||'travaux-marieblacher@bugbusters.fr';
-  document.getElementById('p-stel').value=profils.sylvie?.tel||'01 88 61 35 81';
+  document.getElementById('p-nnom').value=profils.nirina?.nom||'Sylvie R';
+  document.getElementById('p-nemail').value=profils.nirina?.email||'travaux-marieblacher@bugbusters.fr';
+  document.getElementById('p-stel').value=profils.nirina?.tel||'01 88 61 35 81';
 }
 document.getElementById('techExcel').addEventListener('change',function(e){
   const file=e.target.files[0];if(!file)return;
