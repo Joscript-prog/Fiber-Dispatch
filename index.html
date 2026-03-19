@@ -310,6 +310,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
         <div class="imp-actions">
           <button class="btn btn-p btn-sm" onclick="importOTs()">▶ Importer</button>
           <button class="btn btn-g btn-sm" onclick="clearOTs()">✕ Vider</button>
+          <button class="btn btn-s btn-sm" onclick="exportDispatch()" title="Exporter les OT assignés par technicien">↓ Export OT</button>
           <div class="geo-spin" id="geo-spin"><div class="spinner"></div> Géocodage…</div>
         </div>
       </div>
@@ -464,7 +465,7 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
         <span style="font-size:11px;color:var(--txt3)">Profil :</span>
         <div class="profil-sw">
           <button class="psw-btn active" onclick="setProfil('jonathan',this)">Jonathan</button>
-          <button class="psw-btn" onclick="setProfil('Nirina',this)">Nirina</button>
+          <button class="psw-btn" onclick="setProfil('sylvie',this)">Sylvie</button>
         </div>
       </div>
       <div class="mail-box">
@@ -510,9 +511,9 @@ body{background:var(--bg);color:var(--txt);font-family:var(--fm);font-size:13px;
     <div class="set-card">
       <h3>👤 Profils mail</h3>
       <div class="fg"><label>Nom Jonathan</label><input id="p-jnom" value="Jonathan OTONIA"></div>
-      <div class="fg"><label>Nom Nirina</label><input id="p-snom" value="Nirina A"></div>
-      <div class="fg"><label>Email Nirina</label><input id="p-semail" value="travaux-marieblacher@bugbusters.fr"></div>
-      <div class="fg"><label>Tel Nirina</label><input id="p-stel" value="01 88 61 35 81"></div>
+      <div class="fg"><label>Nom Sylvie</label><input id="p-snom" value="Sylvie R"></div>
+      <div class="fg"><label>Email Sylvie</label><input id="p-semail" value="travaux-marieblacher@bugbusters.fr"></div>
+      <div class="fg"><label>Tel Sylvie</label><input id="p-stel" value="01 88 61 35 81"></div>
       <button class="btn btn-g btn-sm" style="margin-top:10px" onclick="saveProfils()">💾 Sauvegarder</button>
     </div>
     <div class="set-card">
@@ -620,7 +621,7 @@ let techs=[],ots=[],asgn={},geocache={},itvs=[];
 let tMkrs={},otMkrs={},hlCircles=[];
 let selOT=null,tf='all',prevTab='rdv',profil='jonathan';
 let editId=null,agDate=new Date(),map;
-let profils={jonathan:{nom:"Jonathan OTONIA"},Nirina:{nom:"Nirina A",email:"travaux-marieblacher@bugbusters.fr",tel:"01 88 61 35 81"}};
+let profils={jonathan:{nom:"Jonathan OTONIA"},sylvie:{nom:"Sylvie R",email:"travaux-marieblacher@bugbusters.fr",tel:"01 88 61 35 81"}};
 
 // ═══════════════════════════════════
 // PERSIST
@@ -998,7 +999,7 @@ function updPrev(){
   const tech=v('f-tech'),infos=v('f-infos'),inter=v('f-inter');
   const dateF=dateStr?fmtDate(dateStr):'__/__/____';
   const pNom=profils[profil]?.nom||profil;
-  const pSuffix=profil==='Nirina'?`\n${profils.Nirina.email||''}\n${profils.Nirina.tel||''}`:'';
+  const pSuffix=profil==='sylvie'?`\n${profils.sylvie.email||''}\n${profils.sylvie.tel||''}`:'';
   const tObj=techs.find(t=>t.nom===tech);
   const tPhone=tObj?.telephone?` – ${tObj.telephone}`:'';
   const isRocade=(v('f-type')==='TRAVAUX')&&inter.toUpperCase().includes('ROCADE');
@@ -1070,17 +1071,17 @@ async function delItv(id){
 // SETTINGS
 // ═══════════════════════════════════
 function saveProfils(){
-  profils.jonathan.nom=v('p-jnom');profils.Nirina.nom=v('p-snom');
-  profils.Nirina.email=v('p-semail');profils.Nirina.tel=v('p-stel');
+  profils.jonathan.nom=v('p-jnom');profils.sylvie.nom=v('p-snom');
+  profils.sylvie.email=v('p-semail');profils.sylvie.tel=v('p-stel');
   save();toast('Profils sauvegardés','success');
 }
 function loadSettings(){
   const cfg=JSON.parse(localStorage.getItem('firebaseConfig')||'{}');
   ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{const el=document.getElementById('fb_'+k);if(el&&cfg[k])el.value=cfg[k];});
   document.getElementById('p-jnom').value=profils.jonathan?.nom||'Jonathan OTONIA';
-  document.getElementById('p-snom').value=profils.Nirina?.nom||'Nirina A';
-  document.getElementById('p-semail').value=profils.Nirina?.email||'travaux-marieblacher@bugbusters.fr';
-  document.getElementById('p-stel').value=profils.Nirina?.tel||'01 88 61 35 81';
+  document.getElementById('p-snom').value=profils.sylvie?.nom||'Sylvie R';
+  document.getElementById('p-semail').value=profils.sylvie?.email||'travaux-marieblacher@bugbusters.fr';
+  document.getElementById('p-stel').value=profils.sylvie?.tel||'01 88 61 35 81';
 }
 document.getElementById('techExcel').addEventListener('change',function(e){
   const file=e.target.files[0];if(!file)return;
@@ -1094,6 +1095,38 @@ document.getElementById('techExcel').addEventListener('change',function(e){
   };
   reader.readAsArrayBuffer(file);
 });
+function exportDispatch(){
+  const wb=XLSX.utils.book_new();
+  let hasData=false;
+  for(const k in asgn){
+    const myOTs=asgn[k].map(i=>ots[i]).filter(Boolean);
+    if(!myOTs.length)continue;
+    hasData=true;
+    const t=techs[k];
+    const rows=[['Code Postal','Raison sociale','Technicien','Société']];
+    myOTs.forEach(o=>rows.push([o.cp,o.label,t.nom,t.societe]));
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:40},{wch:25},{wch:20}];
+    const sn=(t.nom||'Tech').replace(/[^a-zA-Z0-9]/g,'_').substring(0,28);
+    XLSX.utils.book_append_sheet(wb,ws,sn);
+  }
+  const recap=[['Technicien','Société','Nb OT','Code Postaux','Raisons sociales']];
+  for(const k in asgn){
+    const myOTs=asgn[k].map(i=>ots[i]).filter(Boolean);
+    if(!myOTs.length)continue;
+    const t=techs[k];
+    recap.push([t.nom,t.societe,myOTs.length,myOTs.map(o=>o.cp).join(', '),myOTs.map(o=>o.label).join(' | ')]);
+  }
+  if(recap.length>1){
+    const ws2=XLSX.utils.aoa_to_sheet(recap);
+    ws2['!cols']=[{wch:25},{wch:20},{wch:8},{wch:30},{wch:80}];
+    XLSX.utils.book_append_sheet(wb,ws2,'RECAP');
+    hasData=true;
+  }
+  if(!hasData){toast('Aucune assignation à exporter','error');return;}
+  XLSX.writeFile(wb,'FiberDispatch_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('Export Excel généré ✓','success');
+}
 function exportAg(){
   const dayI=itvs.filter(i=>i.date===agStr());if(!dayI.length){toast('Aucune intervention ce jour','error');return;}
   const ws=XLSX.utils.json_to_sheet(dayI);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Agenda');
