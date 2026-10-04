@@ -1,0 +1,1460 @@
+<title>CRM Devis Bugbusters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an operator workbench. Devis form on the left, BPU catalogue docked on the right
+   like the spare-parts drawer of a technician's van; one top bar for views. */
+:root {
+  --bg: #e9eeef;          /* cool grey, biased to the brand teal */
+  --surface: #ffffff;
+  --surface-2: #f4f7f7;
+  --ink: #142429;
+  --muted: #56686e;
+  --line: #d2dbdd;
+  --brand: #044e67;       /* Bugbusters document teal */
+  --brand-ink: #ffffff;
+  --accent: #d9431a;      /* logo orange */
+  --accent-soft: #fbe6de;
+  --ok: #1f7a4d; --ok-soft: #dcf0e5;
+  --warn: #9a6200; --warn-soft: #fbefd5;
+  --bad: #b3261e; --bad-soft: #f9dedc;
+  --focus: #0f7fa3;
+  --f-display: "Archivo", "Arial Narrow", Arial, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 6px;
+  --topbar-h: 56px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1719; --surface: #142226; --surface-2: #1a2b30; --ink: #e2ecee; --muted: #93a7ad;
+    --line: #293d43; --brand: #5fb0c9; --brand-ink: #071518; --accent: #ff7a4f; --accent-soft: #3a2119;
+    --ok: #6fd1a0; --ok-soft: #173327; --warn: #f0be5c; --warn-soft: #36290f; --bad: #ff8a80; --bad-soft: #3b1b19;
+    --focus: #6cc7e3; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1719; --surface: #142226; --surface-2: #1a2b30; --ink: #e2ecee; --muted: #93a7ad;
+  --line: #293d43; --brand: #5fb0c9; --brand-ink: #071518; --accent: #ff7a4f; --accent-soft: #3a2119;
+  --ok: #6fd1a0; --ok-soft: #173327; --warn: #f0be5c; --warn-soft: #36290f; --bad: #ff8a80; --bad-soft: #3b1b19;
+  --focus: #6cc7e3; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: .005em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.num, .money { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--f-mono); font-size: 12.5px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.muted { color: var(--muted); }
+
+/* Top bar */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 16px; padding-inline: 16px; min-height: var(--topbar-h); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand img { width: 30px; height: 30px; border-radius: 4px; }
+.brand b { font-family: var(--f-display); font-size: 17px; font-weight: 700; color: var(--brand); white-space: nowrap; }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+.tab { border: 0; background: none; padding: 8px 12px; border-radius: var(--r); cursor: pointer; color: var(--muted); font-weight: 600; }
+.tab:hover { background: var(--surface-2); color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--brand); background: var(--surface-2); box-shadow: inset 0 -2px 0 var(--accent); }
+.store-state { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none; }
+.dot.ok { background: var(--ok); } .dot.local { background: var(--accent); }
+
+main { padding-inline: 16px; padding-block: 16px 48px; }
+.view[hidden] { display: none !important; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  padding: 7px 12px; border-radius: var(--r); cursor: pointer; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: var(--brand); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ghost { border-color: transparent; background: none; }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.sm { padding: 4px 8px; font-size: 12px; }
+.icon-btn { border: 0; background: none; cursor: pointer; color: var(--muted); padding: 4px 6px; border-radius: 4px; line-height: 1; font-size: 15px; }
+.icon-btn:hover { color: var(--ink); background: var(--surface-2); }
+
+/* Form */
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > span { font-size: 12px; color: var(--muted); font-weight: 500; }
+input[type=text], input[type=number], input[type=date], input[type=search], select, textarea {
+  width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; padding: 7px 9px; }
+input:focus, select:focus, textarea:focus { border-color: var(--focus); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent); }
+textarea { resize: vertical; }
+.radio-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+.radio-row label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* Workspace */
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 16px; align-items: start; }
+.editor { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.panel h2 { font-size: 15px; color: var(--brand); margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; }
+.panel h2 small { font-family: var(--f-body); font-weight: 500; font-size: 12px; color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fields-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+
+.doc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.doc-num { font-family: var(--f-display); font-size: 22px; font-weight: 700; color: var(--brand); }
+.doc-num em { font-style: normal; color: var(--accent); }
+.save-state { font-size: 12px; color: var(--muted); }
+.save-state.dirty { color: var(--warn); }
+.doc-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.status-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.st-brouillon { background: var(--surface-2); color: var(--muted); }
+.st-envoye { background: var(--warn-soft); color: var(--warn); }
+.st-accepte { background: var(--ok-soft); color: var(--ok); }
+.st-refuse { background: var(--bad-soft); color: var(--bad); }
+
+/* Lines table */
+.lines-wrap { overflow-x: auto; }
+table.lines { width: 100%; border-collapse: collapse; min-width: 640px; }
+table.lines th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 6px 6px; border-bottom: 2px solid var(--brand); }
+table.lines td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.lines td.r, table.lines th.r { text-align: right; }
+table.lines input, table.lines textarea { padding: 5px 7px; }
+table.lines .c-ref { width: 130px; } table.lines .c-pu { width: 98px; } table.lines .c-qt { width: 70px; } table.lines .c-mt { width: 100px; } table.lines .c-act { width: 64px; }
+table.lines .c-ord { width: 28px; }
+table.lines textarea { min-height: 34px; height: 34px; overflow: hidden; resize: none; line-height: 1.35; }
+table.lines tr.is-text textarea { font-style: italic; }
+table.lines tr.is-text td { background: var(--surface-2); }
+.mt { padding-top: 11px; font-weight: 600; white-space: nowrap; }
+.src { display: inline-block; margin-top: 4px; font-size: 10.5px; color: var(--muted); background: var(--surface-2); border-radius: 3px; padding: 0 5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ord { display: flex; flex-direction: column; }
+.ord button { font-size: 11px; padding: 1px 4px; }
+.empty-lines { padding: 22px 8px; text-align: center; color: var(--muted); }
+.totals { display: grid; grid-template-columns: auto auto; gap: 4px 18px; justify-content: end; margin-top: 12px; }
+.totals dt { color: var(--muted); text-align: right; }
+.totals dd { margin: 0; text-align: right; font-weight: 600; min-width: 110px; }
+.totals .ttc { font-family: var(--f-display); font-size: 20px; color: var(--brand); }
+
+/* Catalogue drawer */
+.catalog { position: sticky; top: calc(var(--topbar-h) + 12px); max-height: calc(100dvh - var(--topbar-h) - 28px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; overflow: hidden; }
+.cat-head { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; }
+.cat-head h2 { font-size: 16px; color: var(--brand); display: flex; align-items: center; gap: 8px; }
+.cat-head h2 .close-cat { margin-left: auto; display: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 9px; max-width: 100%; }
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.fixed { padding-right: 9px; }
+.chip.do { border-color: color-mix(in srgb, var(--brand) 45%, var(--line)); }
+.chip.extra { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: var(--accent-soft); }
+.chip button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0 4px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; flex: none; }
+.seg button { border: 0; background: var(--surface); padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+.cat-body { overflow-y: auto; padding: 4px 0 12px; flex: 1; min-height: 120px; }
+.cat-grid > summary { list-style: none; cursor: pointer; padding: 9px 14px 6px; position: sticky; top: 0; background: var(--surface); z-index: 1; display: flex; gap: 8px; align-items: baseline; border-bottom: 1px solid var(--line); }
+.cat-grid > summary::-webkit-details-marker { display: none; }
+.cat-grid > summary b { font-family: var(--f-display); font-size: 13.5px; color: var(--ink); }
+.cat-grid > summary .count { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.cat-grid > summary .tag { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.cat-grid > summary .tag.extra { background: var(--accent-soft); color: var(--accent); }
+.cat-grid > summary .tag.do { color: var(--brand); }
+.cat-sub { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 14px 3px; font-weight: 600; }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 14px; cursor: pointer; border-left: 3px solid transparent; }
+.item:hover, .item:focus-visible { background: var(--surface-2); border-left-color: var(--accent); outline: none; }
+.item .ref { font-family: var(--f-mono); font-size: 12px; color: var(--brand); font-weight: 500; overflow-wrap: anywhere; }
+.item .price { font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.item .price.none { color: var(--warn); font-weight: 600; font-size: 12px; }
+.item .des { grid-column: 1 / -1; font-size: 13px; }
+.item .det { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item .unit { font-size: 11px; color: var(--muted); text-align: right; }
+.item .from { grid-column: 1 / -1; font-size: 11px; color: var(--accent); font-weight: 600; }
+.cat-empty { padding: 24px 16px; color: var(--muted); text-align: center; }
+.fab { display: none; }
+
+/* Lists & tables */
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.toolbar h1 { font-size: 22px; color: var(--brand); margin-right: auto; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table.data { width: 100%; border-collapse: collapse; min-width: 720px; }
+table.data th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+table.data td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.data tr:last-child td { border-bottom: 0; }
+table.data tbody tr.click { cursor: pointer; } table.data tbody tr.click:hover { background: var(--surface-2); }
+table.data td.r, table.data th.r { text-align: right; }
+.empty-state { padding: 36px 20px; text-align: center; color: var(--muted); }
+.empty-state b { display: block; color: var(--ink); font-family: var(--f-display); font-size: 16px; margin-bottom: 4px; }
+
+.bpu-list { display: flex; flex-direction: column; gap: 10px; }
+.bpu { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bpu-top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.bpu-top h3 { font-size: 15px; }
+.bpu-top .src-file { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.bpu-top .actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.bpu .assign { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bpu .assign input { max-width: 260px; }
+.mini-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; max-height: 360px; overflow-y: auto; }
+.mini-table table { width: 100%; border-collapse: collapse; min-width: 560px; font-size: 13px; }
+.mini-table th { position: sticky; top: 0; background: var(--surface-2); text-align: left; font-size: 11px; color: var(--muted); padding: 6px 8px; text-transform: uppercase; letter-spacing: .06em; }
+.mini-table td { padding: 5px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+.mini-table td input { padding: 4px 6px; }
+.note { background: var(--accent-soft); border-radius: 6px; padding: 10px 12px; font-size: 13px; }
+.note.info { background: var(--surface-2); }
+
+.settings { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.logo-box { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.logo-box img { width: 88px; height: 88px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+
+.banner { margin-bottom: 12px; }
+.who { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.linkish { border: 0; background: none; padding: 0; font-weight: 600; color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Access gate */
+.gate { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+.gate-card { width: min(380px, 100%); background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 8px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.gate-brand { display: flex; gap: 12px; align-items: center; }
+.gate-brand img { width: 52px; height: 52px; border-radius: 6px; }
+.gate-brand b { display: block; font-family: var(--f-display); font-size: 22px; color: var(--brand); }
+.gate-brand span { font-size: 12px; color: var(--muted); }
+.gate-err { margin: 0; color: var(--bad); background: var(--bad-soft); padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; z-index: 70; background: rgb(8 20 24 / .45); display: grid; place-items: center; padding: 16px; }
+.modal-card { width: min(760px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--surface); border-radius: 10px; border: 1px solid var(--line); overflow: hidden; }
+.modal-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.modal-head h2 { font-size: 17px; color: var(--brand); margin-right: auto; }
+.modal-body { overflow: auto; padding: 0 0 8px; }
+.act { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; background: var(--surface-2); color: var(--muted); }
+.act-création { background: var(--ok-soft); color: var(--ok); }
+.act-statut { background: var(--warn-soft); color: var(--warn); }
+.act-suppression { background: var(--bad-soft); color: var(--bad); }
+.act-restauration { background: var(--accent-soft); color: var(--accent); }
+#toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); opacity: 0; background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; transition: opacity .2s, transform .2s; z-index: 60; pointer-events: none; max-width: calc(100vw - 32px); }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+
+@media (max-width: 1080px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .catalog { position: fixed; inset: 0; top: env(safe-area-inset-top, 0px); max-height: none; border-radius: 0; z-index: 50; display: none; }
+  .catalog.open { display: flex; }
+  .cat-head h2 .close-cat { display: inline-flex; }
+  .fab { display: inline-flex; position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40; box-shadow: 0 6px 20px rgb(0 0 0 / .25); }
+  .settings { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .grid2, .fields-4 { grid-template-columns: minmax(0, 1fr); }
+  .store-state { margin-left: 0; width: 100%; padding-bottom: 8px; }
+  .doc-actions { margin-left: 0; }
+}
+</style>
+
+<header class="topbar">
+  <div class="brand"><img id="brandLogo" alt="Logo Bugbusters" src="data:image/png;base64,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"><b>Devis Bugbusters</b></div>
+  <nav class="tabs" role="tablist" aria-label="Vues">
+    <button class="tab" role="tab" data-view="devis" aria-selected="true">Devis</button>
+    <button class="tab" role="tab" data-view="liste" aria-selected="false">Liste des devis</button>
+    <button class="tab" role="tab" data-view="histo" aria-selected="false" id="tabHisto" hidden>Historique</button>
+    <button class="tab" role="tab" data-view="bpu" aria-selected="false">BPU &amp; DO</button>
+    <button class="tab" role="tab" data-view="societe" aria-selected="false">Société</button>
+  </nav>
+  <div class="store-state" id="storeState"><span class="dot"></span><span>Connexion…</span></div>
+  <div class="who" id="who" hidden><span class="muted">Connecté :</span> <button class="linkish" id="btnRename" type="button" title="Changer le nom affiché dans l'historique"></button> <button class="btn sm ghost" id="btnLogout" type="button">Se déconnecter</button></div>
+</header>
+
+<div class="gate" id="gate" hidden>
+  <form class="gate-card" id="gateForm" autocomplete="on">
+    <div class="gate-brand"><img alt="" id="gateLogo"><div><b>CRM Devis</b><span>Bugbusters · accès réservé à l'équipe</span></div></div>
+    <label class="field"><span>Votre prénom (affiché dans l'historique)</span><input type="text" id="g-name" autocomplete="given-name" required></label>
+    <label class="field"><span>Code d'accès</span><input type="password" id="g-code" autocomplete="current-password" required></label>
+    <p class="gate-err" id="gateErr" role="alert" hidden></p>
+    <button class="btn primary" type="submit" id="gateBtn">Entrer</button>
+  </form>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head"><h2 id="modalTitle"></h2><button class="icon-btn" id="modalClose" type="button" aria-label="Fermer">✕</button></div>
+    <div id="modalBody" class="modal-body"></div>
+  </div>
+</div>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <!-- ============ DEVIS ============ -->
+  <section class="view" id="view-devis">
+    <div class="workspace">
+      <div class="editor">
+        <div class="panel">
+          <div class="doc-head">
+            <div class="doc-num" id="docNum">Nouveau devis</div>
+            <select id="f-status" aria-label="Statut du devis" style="width:auto">
+              <option value="brouillon">Brouillon</option>
+              <option value="envoye">Envoyé</option>
+              <option value="accepte">Accepté</option>
+              <option value="refuse">Refusé</option>
+            </select>
+            <span class="save-state" id="saveState"></span>
+            <div class="doc-actions">
+              <button class="btn" id="btnNew" type="button">Nouveau</button>
+              <button class="btn" id="btnDup" type="button">Dupliquer</button>
+              <button class="btn primary" id="btnSave" type="button">Enregistrer</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn accent" id="btnPdfDo" type="button">PDF pour le DO</button>
+            <button class="btn" id="btnPdfClient" type="button">PDF pour le client final</button>
+            <span class="muted" style="font-size:12px" id="pdfHint"></span>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <h2>Donneur d'ordre <small>adresse de facturation</small></h2>
+            <div class="stack">
+              <label class="field"><span>DO</span>
+                <input type="text" id="f-do" list="doList" placeholder="Tapez le nom du DO pour le chercher" autocomplete="off">
+              </label>
+              <label class="field"><span>Nom du DO</span><input type="text" id="f-doName"></label>
+              <label class="field"><span>Adresse du DO</span><input type="text" id="f-doAddress"></label>
+              <label class="field"><span>Code postal et ville du DO</span><input type="text" id="f-doCpVille"></label>
+              <div class="field"><span>Conditions de règlement</span>
+                <div class="radio-row">
+                  <label><input type="radio" name="accompte" id="f-acc1" value="1"> Acompte de 50 % à la signature</label>
+                  <label><input type="radio" name="accompte" id="f-acc0" value="0"> 30 jours net date de facture</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>Client final <small>adresse de livraison</small></h2>
+            <div class="stack">
+              <label class="field"><span>Nom du client</span><input type="text" id="f-clientName"></label>
+              <label class="field"><span>Adresse du client</span><input type="text" id="f-clientAddress"></label>
+              <label class="field"><span>Code postal et ville du client</span><input type="text" id="f-clientCpVille"></label>
+              <label class="field"><span>Réf. client / réf. site</span><input type="text" id="f-reference" placeholder="ex. NOM DU CLIENT / NOM DU SITE"></label>
+              <label class="field"><span>Référence BTE <small class="muted">(devis Bouygues uniquement)</small></span><input type="text" id="f-refBTE"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="fields-4">
+            <label class="field"><span>Mode de règlement</span><input type="text" id="f-mode"></label>
+            <label class="field"><span>Validité du devis</span><input type="date" id="f-validite"></label>
+            <label class="field"><span>TVA (%)</span><input type="number" id="f-tva" min="0" step="0.1"></label>
+            <label class="field"><span>Ticket / n° interne</span><input type="text" id="f-ticket"></label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Prestations du devis <small id="linesCount"></small></h2>
+          <div class="lines-wrap">
+            <table class="lines">
+              <thead><tr><th class="c-ord"></th><th class="c-ref">Référence</th><th>Désignation</th><th class="c-pu r">PU HT</th><th class="c-qt r">Qté</th><th class="c-mt r">Montant HT</th><th class="c-act"></th></tr></thead>
+              <tbody id="linesBody"></tbody>
+            </table>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn sm" id="btnAddLine" type="button">+ Ligne libre</button>
+            <button class="btn sm" id="btnAddText" type="button">+ Commentaire</button>
+            <span class="muted" style="font-size:12px">Ajoutez les prestations depuis le panneau de droite.</span>
+          </div>
+          <dl class="totals">
+            <dt>Total HT</dt><dd class="money" id="tHT">0,00 €</dd>
+            <dt id="tTvaLabel">TVA 20 %</dt><dd class="money" id="tTVA">0,00 €</dd>
+            <dt>Net à payer TTC</dt><dd class="money ttc" id="tTTC">0,00 €</dd>
+          </dl>
+        </div>
+      </div>
+
+      <aside class="catalog" id="catalog" aria-label="Prestations disponibles">
+        <div class="cat-head">
+          <h2>Prestations <small class="muted" id="catDo" style="font-family:var(--f-body);font-weight:500;font-size:12px"></small>
+            <button class="btn sm close-cat" id="btnCloseCat" type="button">Fermer</button></h2>
+          <div class="chips" id="gridChips"></div>
+          <label class="field"><span>Utiliser aussi le BPU de…</span>
+            <select id="addGrid"><option value="">Choisir un DO ou un BPU…</option></select>
+          </label>
+          <div class="row">
+            <input type="search" id="catSearch" placeholder="Chercher : wifi, RJ45, nacelle, GC…" aria-label="Chercher une prestation" style="flex:1 1 160px">
+            <div class="seg" role="group" aria-label="Portée de la recherche">
+              <button type="button" id="scopeMine" aria-pressed="true">Ce devis</button>
+              <button type="button" id="scopeAll" aria-pressed="false">Tous les BPU</button>
+            </div>
+          </div>
+          <label class="row" style="font-size:12px;gap:6px;cursor:pointer"><input type="checkbox" id="withDetail"> Ajouter le descriptif dans la désignation</label>
+        </div>
+        <div class="cat-body" id="catBody"></div>
+      </aside>
+    </div>
+    <button class="btn primary fab" id="fab" type="button">Prestations</button>
+  </section>
+
+  <!-- ============ LISTE ============ -->
+  <section class="view" id="view-liste" hidden>
+    <div class="toolbar">
+      <h1>Devis enregistrés</h1>
+      <input type="search" id="listSearch" placeholder="Chercher un client, un DO, une référence…" style="max-width:320px">
+      <select id="listStatus" style="width:auto">
+        <option value="">Tous les statuts</option>
+        <option value="brouillon">Brouillon</option><option value="envoye">Envoyé</option>
+        <option value="accepte">Accepté</option><option value="refuse">Refusé</option>
+      </select>
+      <button class="btn primary" id="btnNew2" type="button">Nouveau devis</button>
+    </div>
+    <div class="table-wrap" id="listWrap"></div>
+  </section>
+
+  <!-- ============ HISTORIQUE ============ -->
+  <section class="view" id="view-histo" hidden>
+    <div class="toolbar">
+      <h1>Historique des devis</h1>
+      <input type="search" id="histoSearch" placeholder="Chercher un devis, un client, une personne…" style="max-width:320px">
+      <button class="btn" id="btnHistoRefresh" type="button">Actualiser</button>
+    </div>
+    <p class="muted" style="margin:0 0 12px;max-width:72ch">Chaque création, modification, changement de statut et suppression est enregistré avec son auteur. Les enregistrements successifs d'une même personne sur 10 minutes sont regroupés en une seule ligne.</p>
+    <div class="table-wrap" id="histoWrap"></div>
+  </section>
+
+  <!-- ============ BPU ============ -->
+  <section class="view" id="view-bpu" hidden>
+    <div class="toolbar">
+      <h1>BPU &amp; DO</h1>
+      <input type="search" id="bpuSearch" placeholder="Chercher un BPU ou un DO…" style="max-width:280px">
+      <button class="btn primary" id="btnNewGrid" type="button">Créer un BPU</button>
+    </div>
+    <div class="panel stack" id="catalogImport" hidden style="margin-bottom:14px">
+      <h2 id="catalogImportTitle">Catalogue des BPU</h2>
+      <p class="muted" style="margin:0;font-size:13px;max-width:72ch" id="catalogImportText">Importez le fichier catalog.json pour charger ou mettre à jour les BPU importés et la liste des DO. Les BPU créés dans le CRM, les devis et les rattachements ne sont pas modifiés.</p>
+      <div class="row"><label class="btn primary" for="catalogFile">Importer catalog.json…</label><input type="file" id="catalogFile" accept="application/json,.json" hidden></div>
+    </div>
+    <p class="muted" style="margin:0 0 12px;max-width:72ch">Chaque BPU est rattaché à un ou plusieurs DO. Quand vous choisissez un DO dans un devis, ses BPU s'affichent dans le panneau Prestations, avec la grille Bugbusters de Mobility4. Les BPU importés sont en lecture seule : dupliquez-les pour changer un prix.</p>
+    <div id="gridEditor" hidden></div>
+    <div class="bpu-list" id="bpuList"></div>
+  </section>
+
+  <!-- ============ SOCIÉTÉ ============ -->
+  <section class="view" id="view-societe" hidden>
+    <div class="toolbar"><h1>Société et mentions du devis</h1>
+      <button class="btn primary" id="btnSaveCompany" type="button">Enregistrer</button></div>
+    <div class="settings">
+      <div class="panel stack">
+        <h2>En-tête</h2>
+        <label class="field"><span>Raison sociale affichée</span><input type="text" id="c-name"></label>
+        <label class="field"><span>Adresse</span><input type="text" id="c-addr1"></label>
+        <label class="field"><span>Code postal et ville</span><input type="text" id="c-addr2"></label>
+        <h2 style="margin-top:8px">Pied de page</h2>
+        <label class="field"><span>Ligne 1</span><input type="text" id="c-foot1"></label>
+        <label class="field"><span>Ligne 2</span><input type="text" id="c-foot2"></label>
+        <h2 style="margin-top:8px">Conditions</h2>
+        <label class="field"><span>Texte avec acompte de 50 %</span><textarea id="c-condAcc" rows="5"></textarea></label>
+        <label class="field"><span>Texte à 30 jours net</span><textarea id="c-cond30" rows="4"></textarea></label>
+        <div class="fields-4" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+          <label class="field"><span>Mode de règlement par défaut</span><input type="text" id="c-mode"></label>
+          <label class="field"><span>TVA par défaut (%)</span><input type="number" id="c-tva" step="0.1"></label>
+          <label class="field"><span>Préfixe des numéros</span><input type="text" id="c-prefix"></label>
+        </div>
+      </div>
+      <div class="stack" style="gap:16px;min-width:0">
+      <div class="panel stack">
+        <h2>Logo</h2>
+        <div class="logo-box"><img id="c-logoPreview" alt="Logo actuel"><div class="stack">
+          <label class="btn" for="c-logoFile" style="width:max-content">Choisir une image…</label>
+          <input type="file" id="c-logoFile" accept="image/png,image/jpeg" hidden>
+          <button class="btn ghost sm" id="c-logoReset" type="button" style="width:max-content">Revenir au logo d'origine</button>
+          <span class="muted" style="font-size:12px">PNG ou JPG. L'image est réduite à 400 px.</span></div></div>
+        <div class="note info" style="margin-top:6px">Le logo d'origine vient d'un devis Mobility4 (116 × 116 px). Pour une impression nette, chargez la version haute définition du logo.</div>
+      </div>
+      <div class="panel stack">
+        <h2>Sauvegarde</h2>
+        <p class="muted" style="margin:0;font-size:13px" id="backupHint">Exportez tous les devis, les BPU créés, les rattachements DO et ces réglages dans un fichier .json. Importez ce fichier sur un autre ordinateur ou après avoir vidé le navigateur.</p>
+        <div class="row">
+          <button class="btn" id="btnExport" type="button">Exporter les données</button>
+          <label class="btn" for="importFile">Importer une sauvegarde…</label>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<datalist id="doList"></datalist>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+  /* Connexion Supabase. La clé publishable est publique par conception : sans le code d'accès,
+     les règles de sécurité (RLS) de la base ne renvoient aucune donnée. */
+  window.CRM_CONFIG = {
+    url: "https://bgzcvdcqkhrweiirvrlp.supabase.co",
+    key: "sb_publishable_8Fh6TOubMI_qADGJMe6JBw_1kj0ro2q",
+    email: "devis.equipe@bugbusters.fr"
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/vfs_fonts.js"></script>
+<script>
+"use strict";
+/* ---------------- constants & helpers ---------------- */
+const DEFAULT_LOGO = document.getElementById("brandLogo").src;
+const DEFAULT_COMPANY = {
+  name: "BUGBUSTERS WE DEPLOY IT",
+  addr1: "118B Route d'Espagne",
+  addr2: "31100 Toulouse",
+  foot1: "BUGBUSTERS, SASU au capital de 100 000 euros - 118B Route d'Espagne, 31100 Toulouse France - Tél. : +33181222222",
+  foot2: "SIRET : 482 451 457 00030 R.C.S. TOULOUSE   N° TVA : FR06 482 451 457   APE : 6202A",
+  condAcc: "Pour l'acceptation de ce devis et le règlement de l'acompte de 50 %, merci de nous le renvoyer signé et tamponné par E-MAIL en faisant \"Répondre à tous\" accompagné de la preuve de virement de l'acompte (ci-joint un RIB, indiquer en référence le N° de devis). Pour une annulation à J, le montant de la prestation sera facturé à 100 %. Pour une annulation à J-1, le montant de la prestation sera facturé à 50 %. Pour une annulation à J-2, le montant de la prestation sera facturé à 25 %. N.B. : Pensez à nous informer si l'adresse de facturation diffère de celle présente sur ce devis.",
+  cond30: "Pour l'acceptation de ce devis, merci de nous le renvoyer signé et tamponné par E-MAIL en faisant \"Répondre à tous\". Règlement à 30 jours net date de facture. Pour une annulation à J, le montant de la prestation sera facturé à 100 %. Pour une annulation à J-1, le montant de la prestation sera facturé à 50 %. Pour une annulation à J-2, le montant de la prestation sera facturé à 25 %. N.B. : Pensez à nous informer si l'adresse de facturation diffère de celle présente sur ce devis.",
+  mode: "Virement Bancaire",
+  tva: 20,
+  prefix: "DV",
+  logo: ""
+};
+const STATUS = { brouillon: "Brouillon", envoye: "Envoyé", accepte: "Accepté", refuse: "Refusé" };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+/* money with plain spaces (no narrow no-break space) so the PDF font always has the glyph */
+function fmtNum(n) {
+  const v = round2(n); const neg = v < 0; const [i, d] = Math.abs(v).toFixed(2).split(".");
+  return (neg ? "-" : "") + i.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + "," + d;
+}
+const money = (n) => fmtNum(n) + " €";
+function parseNum(s) { if (s === null || s === undefined || s === "") return null; const v = Number(String(s).replace(/\s/g, "").replace(",", ".")); return Number.isFinite(v) ? v : null; }
+function qtyStr(q) { const v = round2(q); return Number.isInteger(v) ? String(v) : fmtNum(v); }
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, "").slice(0, 20);
+const todayISO = () => new Date().toISOString().slice(0, 10);
+function addDays(iso, n) { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function frDate(iso) { if (!iso) return ""; const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; }
+const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+let toastT; function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2400); }
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+/* ---------------- app state ---------------- */
+const S = {
+  catalog: null,            // {grids, mapping, dos}
+  custom: {},               // id -> custom grid
+  mapping: null,            // stored override of DO -> grid ids
+  doAddr: {},               // stored DO addresses
+  company: { ...DEFAULT_COMPANY },
+  devis: [],                // saved devis
+  cur: null,                // devis being edited
+  dirty: false,
+  scopeAll: false,
+  readOnly: false,
+  storeReady: false
+};
+
+/* ---------------- storage (db capability, local fallback) ---------------- */
+const ArtifactStore = (() => {
+  let db = null, mode = "pending";
+  const LS = "bbcrm:v1";
+  const local = lsGet(LS, { devis: {}, grids: {}, config: {} });
+  const subs = { devis: [], grids: [], config: [] };
+  const emitLocal = (k) => {
+    if (k === "devis") subs.devis.forEach((f) => f(Object.values(local.devis)));
+    if (k === "grids") subs.grids.forEach((f) => f(Object.values(local.grids)));
+    if (k === "config") subs.config.forEach((f) => f(local.config));
+  };
+  const persist = () => lsSet(LS, local);
+  async function init() {
+    const c = window.claude;
+    if (c && typeof c.use === "function") {
+      try { db = await c.use("db"); } catch (e) { db = null; }
+    }
+    mode = db ? "db" : "local";
+    let canWrite = true;
+    if (db) {
+      try { const u = await c.use("user"); if (u && typeof u.can === "function") { const w = await u.can("data.write"); if (w === false) canWrite = false; } } catch (e) {}
+    }
+    return { mode, canWrite };
+  }
+  function onDevis(cb) {
+    if (mode === "db") return db.collection("devis").onSnapshot((s) => cb(s.docs.map((d) => ({ ...d.data(), id: d.id }))), onErr);
+    subs.devis.push(cb); cb(Object.values(local.devis));
+  }
+  function onGrids(cb) {
+    if (mode === "db") return db.collection("grids").onSnapshot((s) => cb(s.docs.map((d) => ({ ...d.data(), id: d.id }))), onErr);
+    subs.grids.push(cb); cb(Object.values(local.grids));
+  }
+  function onConfig(cb) {
+    if (mode === "db") {
+      const cfg = {};
+      ["company", "mapping", "doaddr"].forEach((k) => db.doc("config/" + k).onSnapshot((d) => { cfg[k] = d.exists ? d.data() : null; cb({ ...cfg }); }, onErr));
+      return;
+    }
+    subs.config.push(cb); cb(local.config);
+  }
+  function onErr(e) { if (e && e.code === "revoked") setReadOnly("L'accès à l'enregistrement a été retiré pour cette vue."); }
+  async function write(fn) {
+    try { await fn(); return true; }
+    catch (e) {
+      if (e && e.code === "unavailable") { await new Promise((r) => setTimeout(r, 600 + Math.random() * 600)); try { await fn(); return true; } catch (e2) { e = e2; } }
+      if (e && e.code === "invalid_argument") setReadOnly("Vous pouvez consulter ces devis mais pas les modifier (accès en lecture seule).");
+      else if (e && e.code === "quota_exceeded") toast("Espace de stockage plein : supprimez d'anciens devis.");
+      else toast("Enregistrement impossible : " + ((e && e.message) || "erreur inconnue"));
+      return false;
+    }
+  }
+  return {
+    init, onDevis, onGrids, onConfig,
+    features: { history: false, trash: false, catalogImport: false },
+    loadCatalog: async () => { const r = await fetch("catalog.json"); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); },
+    get mode() { return mode; },
+    newId: () => (mode === "db" ? db.collection("devis").doc().id : uid()),
+    saveDevis: (d) => mode === "db" ? write(() => db.doc("devis/" + d.id).set(d)) : (local.devis[d.id] = d, persist(), emitLocal("devis"), Promise.resolve(true)),
+    deleteDevis: (id) => mode === "db" ? write(() => db.doc("devis/" + id).delete()) : (delete local.devis[id], persist(), emitLocal("devis"), Promise.resolve(true)),
+    saveGrid: (g) => mode === "db" ? write(() => db.doc("grids/" + g.id).set(g)) : (local.grids[g.id] = g, persist(), emitLocal("grids"), Promise.resolve(true)),
+    deleteGrid: (id) => mode === "db" ? write(() => db.doc("grids/" + id).delete()) : (delete local.grids[id], persist(), emitLocal("grids"), Promise.resolve(true)),
+    saveConfig: (k, body) => mode === "db" ? write(() => db.doc("config/" + k).set(body)) : (local.config[k] = body, persist(), emitLocal("config"), Promise.resolve(true))
+  };
+})();
+
+/* ---------------- storage: Supabase (GitHub Pages version, shared access code) ---------------- */
+function makeSupaStore(cfg) {
+  const sb = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "crm-devis-auth" } });
+  const subs = { devis: [], grids: [], config: [] };
+  const cache = { devis: [], config: {} };
+  let author = lsGet("crm:author", "");
+  const q = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
+  const isAuthErr = (e) => e && (e.status === 401 || /jwt|token|auth/i.test(e.message || "") || e.code === "PGRST301");
+  function fail(e, what) {
+    console.error(e);
+    if (isAuthErr(e)) { toast("Session expirée : saisissez à nouveau le code d'accès"); showGate(); }
+    else toast(`${what} impossible : ${(e && e.message) || "erreur réseau"}`);
+    return false;
+  }
+  const now = () => new Date().toISOString();
+  async function loadDevis() {
+    const rows = await q(sb.from("devis").select("id,data,updated_by").is("deleted_at", null).order("updated_at", { ascending: false }).limit(2000));
+    cache.devis = rows.map((r) => ({ ...r.data, id: r.id, updatedBy: r.updated_by }));
+    subs.devis.forEach((f) => f(cache.devis));
+  }
+  async function loadBpuAndConfig() {
+    const [bpu, cfgRows] = await Promise.all([
+      q(sb.from("bpu").select("id,name,source,builtin,ord,items").order("ord")),
+      q(sb.from("config").select("key,data"))
+    ]);
+    const conf = {}; cfgRows.forEach((r) => { conf[r.key] = r.data; });
+    cache.config = conf;
+    return { bpu, conf };
+  }
+  let refreshT;
+  const refreshSoon = () => { clearTimeout(refreshT); refreshT = setTimeout(() => loadDevis().catch(() => {}), 400); };
+  let customCbRows = [];
+  async function refreshOthers() {
+    try {
+      const { bpu, conf } = await loadBpuAndConfig();
+      customCbRows = bpu.filter((r) => !r.builtin).map((r) => ({ id: r.id, name: r.name, source: r.source, items: r.items }));
+      subs.grids.forEach((f) => f(customCbRows)); subs.config.forEach((f) => f(conf));
+    } catch (e) {}
+  }
+  return {
+    sb,
+    features: { history: true, trash: true, catalogImport: true },
+    get mode() { return "supabase"; },
+    get author() { return author; },
+    setAuthor(n) { author = n; lsSet("crm:author", n); },
+    async hasSession() { const { data } = await sb.auth.getSession(); return !!(data.session && data.session.user && data.session.user.email === cfg.email); },
+    async signIn(code) { const { error } = await sb.auth.signInWithPassword({ email: cfg.email, password: code }); return error ? error : null; },
+    async signOut() { await sb.auth.signOut(); },
+    async init() { return { mode: "supabase", canWrite: true }; },
+    async loadCatalog() {
+      const { bpu, conf } = await loadBpuAndConfig();
+      customCbRows = bpu.filter((r) => !r.builtin).map((r) => ({ id: r.id, name: r.name, source: r.source, items: r.items }));
+      return {
+        grids: bpu.filter((r) => r.builtin).map((r) => ({ id: r.id, name: r.name, source: r.source, items: r.items })),
+        mapping: (conf.mapping_default && conf.mapping_default.map) || {},
+        dos: (conf.dos && conf.dos.list) || []
+      };
+    },
+    onDevis(cb) {
+      subs.devis.push(cb);
+      loadDevis().catch((e) => fail(e, "Chargement des devis"));
+      sb.channel("devis-live").on("postgres_changes", { event: "*", schema: "public", table: "devis" }, refreshSoon).subscribe();
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) { refreshSoon(); refreshOthers(); } });
+    },
+    onGrids(cb) { subs.grids.push(cb); cb(customCbRows); },
+    onConfig(cb) { subs.config.push(cb); cb(cache.config); },
+    newId: () => uid(),
+    async saveDevis(d) {
+      const t = totals(d);
+      try {
+        await q(sb.from("devis").upsert({ id: d.id, num: d.num || "", status: d.status || "brouillon", do_name: d.doName || "", client_name: (d.client && d.client.name) || "",
+          total_ht: t.ht, data: d, created_at: new Date(d.createdAt || Date.now()).toISOString(), updated_at: now(), updated_by: author || null }));
+        const i = cache.devis.findIndex((x) => x.id === d.id); const row = { ...d, updatedBy: author };
+        if (i >= 0) cache.devis[i] = row; else cache.devis.unshift(row);
+        subs.devis.forEach((f) => f(cache.devis)); return true;
+      } catch (e) { return fail(e, "Enregistrement"); }
+    },
+    async deleteDevis(id) {
+      try { await q(sb.from("devis").update({ deleted_at: now(), updated_by: author || null }).eq("id", id)); cache.devis = cache.devis.filter((x) => x.id !== id); subs.devis.forEach((f) => f(cache.devis)); return true; }
+      catch (e) { return fail(e, "Suppression"); }
+    },
+    async restoreDevis(id) {
+      try { await q(sb.from("devis").update({ deleted_at: null, updated_by: author || null }).eq("id", id)); await loadDevis(); return true; }
+      catch (e) { return fail(e, "Restauration"); }
+    },
+    async listTrash() {
+      try { const rows = await q(sb.from("devis").select("id,data,updated_by,deleted_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(500)); return rows.map((r) => ({ ...r.data, id: r.id, deletedAt: r.deleted_at, updatedBy: r.updated_by })); }
+      catch (e) { fail(e, "Lecture de la corbeille"); return []; }
+    },
+    async history(devisId) {
+      try { return await q(sb.from("devis_historique").select("id,num,action,auteur,status,total_ht,created_at").eq("devis_id", devisId).order("id", { ascending: false }).limit(300)); }
+      catch (e) { fail(e, "Lecture de l'historique"); return []; }
+    },
+    async journal() {
+      try { return await q(sb.from("devis_historique").select("id,devis_id,num,action,auteur,status,total_ht,created_at,data->client->>name,data->>doName").order("id", { ascending: false }).limit(300)); }
+      catch (e) { fail(e, "Lecture de l'historique"); return []; }
+    },
+    async version(hid) {
+      try { const rows = await q(sb.from("devis_historique").select("data").eq("id", hid).limit(1)); return rows[0] ? rows[0].data : null; }
+      catch (e) { fail(e, "Lecture de la version"); return null; }
+    },
+    async saveGrid(g) {
+      try { await q(sb.from("bpu").upsert({ id: g.id, name: g.name, source: g.source || "Créé dans le CRM", builtin: false, ord: 500, items: g.items, updated_at: now(), updated_by: author || null })); await refreshOthers(); return true; }
+      catch (e) { return fail(e, "Enregistrement du BPU"); }
+    },
+    async deleteGrid(id) {
+      try { await q(sb.from("bpu").delete().eq("id", id).eq("builtin", false)); await refreshOthers(); return true; }
+      catch (e) { return fail(e, "Suppression du BPU"); }
+    },
+    async saveConfig(k, body) {
+      try { await q(sb.from("config").upsert({ key: k, data: body, updated_at: now(), updated_by: author || null })); cache.config = { ...cache.config, [k]: body }; subs.config.forEach((f) => f(cache.config)); return true; }
+      catch (e) { return fail(e, "Enregistrement des réglages"); }
+    },
+    async importCatalog(cat) {
+      try {
+        const rows = cat.grids.map((g, i) => ({ id: g.id, name: g.name, source: g.source || "", builtin: true, ord: i, items: g.items, updated_at: now(), updated_by: author || null }));
+        for (let i = 0; i < rows.length; i += 4) await q(sb.from("bpu").upsert(rows.slice(i, i + 4)));
+        await q(sb.from("config").upsert([
+          { key: "dos", data: { list: cat.dos }, updated_at: now(), updated_by: author || null },
+          { key: "mapping_default", data: { map: cat.mapping }, updated_at: now(), updated_by: author || null }
+        ]));
+        return true;
+      } catch (e) { return fail(e, "Import du catalogue"); }
+    }
+  };
+}
+
+const CRM_CFG = window.CRM_CONFIG || null;
+let Store = ArtifactStore;
+if (CRM_CFG && window.supabase && window.supabase.createClient) Store = makeSupaStore(CRM_CFG);
+
+function setReadOnly(msg) {
+  S.readOnly = true;
+  const b = $("banner"); b.hidden = false; b.className = "banner note"; b.textContent = msg;
+  ["btnSave", "btnSaveCompany", "btnNewGrid"].forEach((id) => { const el = $(id); if (el) el.disabled = true; });
+}
+
+/* ---------------- catalogue helpers ---------------- */
+function allGrids() {
+  const list = S.catalog ? S.catalog.grids.slice() : [];
+  Object.values(S.custom).forEach((g) => list.push(g));
+  return list;
+}
+const gridById = (id) => allGrids().find((g) => g.id === id);
+function mapping() { return S.mapping || (S.catalog ? S.catalog.mapping : {}); }
+function dosOfGrid(gid) { const m = mapping(); return Object.keys(m).filter((c) => (m[c] || []).includes(gid)); }
+function doByCode(code) { return S.catalog ? S.catalog.dos.find((d) => d.code === code) : null; }
+function doName(code) { const d = doByCode(code); return d ? d.name : code; }
+function gridsOfDo(code) { return (mapping()[code] || []).filter((id) => gridById(id)); }
+function activeGridIds() {
+  const ids = ["mobility"];
+  if (S.cur) { gridsOfDo(S.cur.doCode).forEach((id) => ids.includes(id) || ids.push(id)); (S.cur.extraGrids || []).forEach((id) => ids.includes(id) || ids.push(id)); }
+  return ids.filter((id) => gridById(id));
+}
+function gridShort(g) { return g ? g.name.split(" – ")[0] : ""; }
+
+/* ---------------- devis model ---------------- */
+function blankDevis() {
+  const c = S.company;
+  return {
+    id: null, num: "", status: "brouillon", createdAt: null, updatedAt: null,
+    doCode: "", doName: "", doAddress: "", doCpVille: "", accompte: false,
+    reference: "", refBTE: "", ticket: "", mode: c.mode || "Virement Bancaire",
+    client: { name: "", address: "", cpVille: "" },
+    validite: addDays(todayISO(), 30), tva: Number(c.tva) || 20,
+    extraGrids: [], lines: []
+  };
+}
+function totals(d) {
+  const ht = round2((d.lines || []).reduce((s, l) => s + (l.kind === "text" ? 0 : (Number(l.pu) || 0) * (Number(l.qt) || 0)), 0));
+  const tva = round2(ht * (Number(d.tva) || 0) / 100);
+  return { ht, tva, ttc: round2(ht + tva) };
+}
+function nextNumber() {
+  const pfx = (S.company.prefix || "DV").trim();
+  const ym = todayISO().slice(2, 7).replace("-", "");
+  const re = new RegExp("^" + pfx.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-" + ym + "-(\\d+)$");
+  let max = 0; S.devis.forEach((d) => { const m = re.exec(d.num || ""); if (m) max = Math.max(max, +m[1]); });
+  return `${pfx}-${ym}-${String(max + 1).padStart(3, "0")}`;
+}
+
+/* ---------------- devis editor ---------------- */
+const F = {
+  doName: "f-doName", doAddress: "f-doAddress", doCpVille: "f-doCpVille", reference: "f-reference", refBTE: "f-refBTE",
+  ticket: "f-ticket", mode: "f-mode", validite: "f-validite"
+};
+function loadIntoForm() {
+  const d = S.cur;
+  $("f-do").value = d.doCode ? (doName(d.doCode) || d.doName) : (d.doName || "");
+  Object.entries(F).forEach(([k, id]) => { $(id).value = d[k] || ""; });
+  $("f-clientName").value = d.client.name || ""; $("f-clientAddress").value = d.client.address || ""; $("f-clientCpVille").value = d.client.cpVille || "";
+  $("f-tva").value = d.tva; $("f-status").value = d.status || "brouillon";
+  $("f-acc1").checked = !!d.accompte; $("f-acc0").checked = !d.accompte;
+  renderHead(); renderLines(); renderCatalog();
+}
+function renderHead() {
+  const d = S.cur;
+  $("docNum").innerHTML = d.num ? `Devis <em>${esc(d.num)}</em>` : "Nouveau devis";
+  const st = $("saveState");
+  if (S.readOnly) { st.textContent = "Lecture seule"; st.className = "save-state"; }
+  else if (!S.storeReady) { st.textContent = "Connexion à l'enregistrement…"; st.className = "save-state"; }
+  else if (S.dirty) { st.textContent = d.id ? "Modifications non enregistrées" : "Pas encore enregistré"; st.className = "save-state dirty"; }
+  else if (d.updatedAt) { st.textContent = "Enregistré " + new Date(d.updatedAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); st.className = "save-state"; }
+  else { st.textContent = ""; }
+  $("btnSave").disabled = S.readOnly || !S.storeReady;
+}
+let autosaveT;
+function markDirty() {
+  S.dirty = true; renderHead();
+  clearTimeout(autosaveT);
+  if (S.cur.id && !S.readOnly) autosaveT = setTimeout(() => saveCurrent(true), 2500);
+}
+function bindForm() {
+  Object.entries(F).forEach(([k, id]) => $(id).addEventListener("input", (e) => { S.cur[k] = e.target.value; markDirty(); }));
+  $("f-clientName").addEventListener("input", (e) => { S.cur.client.name = e.target.value; markDirty(); });
+  $("f-clientAddress").addEventListener("input", (e) => { S.cur.client.address = e.target.value; markDirty(); });
+  $("f-clientCpVille").addEventListener("input", (e) => { S.cur.client.cpVille = e.target.value; markDirty(); });
+  $("f-tva").addEventListener("input", (e) => { S.cur.tva = parseNum(e.target.value) ?? 0; renderTotals(); markDirty(); });
+  $("f-status").addEventListener("change", (e) => { S.cur.status = e.target.value; markDirty(); });
+  $("f-acc1").addEventListener("change", () => { S.cur.accompte = true; markDirty(); });
+  $("f-acc0").addEventListener("change", () => { S.cur.accompte = false; markDirty(); });
+  $("f-do").addEventListener("change", (e) => chooseDo(e.target.value));
+}
+function chooseDo(text) {
+  const t = text.trim();
+  const found = S.catalog.dos.find((d) => d.name.toLowerCase() === t.toLowerCase() || d.code.toLowerCase() === t.toLowerCase());
+  const d = S.cur;
+  if (found) {
+    d.doCode = found.code; d.doName = found.name;
+    const saved = S.doAddr[found.code];
+    d.doAddress = saved ? saved.address : found.address; d.doCpVille = saved ? saved.cpVille : found.cpVille;
+    d.accompte = saved && typeof saved.accompte === "boolean" ? saved.accompte : !!found.accompte;
+  } else {
+    d.doCode = t ? "X-" + t.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 30) : ""; d.doName = t;
+  }
+  loadIntoForm(); markDirty();
+  const n = gridsOfDo(d.doCode).length;
+  if (d.doCode) toast(n ? `${n} BPU rattaché${n > 1 ? "s" : ""} à ${d.doName} ajouté${n > 1 ? "s" : ""} aux prestations` : `${d.doName} n'a pas de BPU rattaché : grille Bugbusters affichée`);
+}
+
+function lineRow(l, i, n) {
+  const isText = l.kind === "text"; const g = l.src ? gridById(l.src) : null;
+  const mt = isText ? "" : money((Number(l.pu) || 0) * (Number(l.qt) || 0));
+  return `<tr data-i="${i}" class="${isText ? "is-text" : ""}">
+    <td class="ord"><button class="icon-btn" data-act="up" ${i === 0 ? "disabled" : ""} aria-label="Monter la ligne">▲</button><button class="icon-btn" data-act="down" ${i === n - 1 ? "disabled" : ""} aria-label="Descendre la ligne">▼</button></td>
+    <td>${isText ? "" : `<input type="text" class="mono" data-f="ref" value="${esc(l.ref)}" aria-label="Référence">`}</td>
+    <td><textarea data-f="des" rows="1" aria-label="${isText ? "Commentaire" : "Désignation"}" placeholder="${isText ? "Commentaire imprimé sans prix" : ""}">${esc(l.des)}</textarea>${g && !isText ? `<span class="src" title="${esc(g.name)}">${esc(gridShort(g))}</span>` : ""}</td>
+    <td class="r">${isText ? "" : `<input type="text" inputmode="decimal" class="num" data-f="pu" value="${l.pu === null || l.pu === undefined ? "" : esc(fmtNum(l.pu))}" style="text-align:right" aria-label="Prix unitaire HT">`}</td>
+    <td class="r">${isText ? "" : `<input type="text" inputmode="decimal" class="num" data-f="qt" value="${esc(qtyStr(l.qt))}" style="text-align:right" aria-label="Quantité">`}</td>
+    <td class="r mt money" data-mt>${mt}</td>
+    <td class="r"><button class="icon-btn" data-act="del" aria-label="Supprimer la ligne">✕</button></td>
+  </tr>`;
+}
+function renderLines() {
+  const L = S.cur.lines; const body = $("linesBody");
+  body.innerHTML = L.length ? L.map((l, i) => lineRow(l, i, L.length)).join("") :
+    `<tr><td colspan="7" class="empty-lines">Aucune prestation. Choisissez un DO puis cliquez sur une prestation dans le panneau de droite.</td></tr>`;
+  body.querySelectorAll("textarea").forEach(autoGrow);
+  const n = L.filter((l) => l.kind !== "text").length; $("linesCount").textContent = n ? `${n} ligne${n > 1 ? "s" : ""}` : "";
+  renderTotals();
+}
+function autoGrow(t) { t.style.height = "auto"; t.style.height = Math.max(34, t.scrollHeight + 2) + "px"; }
+function renderTotals() {
+  const t = totals(S.cur);
+  $("tHT").textContent = money(t.ht); $("tTVA").textContent = money(t.tva); $("tTTC").textContent = money(t.ttc);
+  $("tTvaLabel").textContent = `TVA ${String(S.cur.tva).replace(".", ",")} %`;
+}
+function bindLines() {
+  const body = $("linesBody");
+  body.addEventListener("input", (e) => {
+    const tr = e.target.closest("tr[data-i]"); if (!tr) return; const l = S.cur.lines[+tr.dataset.i]; const f = e.target.dataset.f;
+    if (f === "des") { l.des = e.target.value; autoGrow(e.target); }
+    else if (f === "ref") l.ref = e.target.value;
+    else if (f === "pu") l.pu = parseNum(e.target.value);
+    else if (f === "qt") l.qt = parseNum(e.target.value) ?? 0;
+    if (f === "pu" || f === "qt") { tr.querySelector("[data-mt]").textContent = money((Number(l.pu) || 0) * (Number(l.qt) || 0)); renderTotals(); }
+    markDirty();
+  });
+  body.addEventListener("focusout", (e) => {
+    const tr = e.target.closest("tr[data-i]"); if (!tr) return; const l = S.cur.lines[+tr.dataset.i];
+    if (e.target.dataset.f === "pu" && l.pu !== null) e.target.value = fmtNum(l.pu);
+  });
+  body.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-act]"); if (!b) return; const i = +b.closest("tr").dataset.i; const L = S.cur.lines;
+    if (b.dataset.act === "del") L.splice(i, 1);
+    if (b.dataset.act === "up" && i > 0) [L[i - 1], L[i]] = [L[i], L[i - 1]];
+    if (b.dataset.act === "down" && i < L.length - 1) [L[i + 1], L[i]] = [L[i], L[i + 1]];
+    renderLines(); markDirty();
+  });
+  $("btnAddLine").addEventListener("click", () => { S.cur.lines.push({ id: uid(), kind: "item", ref: "", des: "", pu: 0, qt: 1, src: "" }); renderLines(); markDirty(); focusLast("ref"); });
+  $("btnAddText").addEventListener("click", () => { S.cur.lines.push({ id: uid(), kind: "text", ref: "", des: "", pu: null, qt: 0, src: "" }); renderLines(); markDirty(); focusLast("des"); });
+}
+function focusLast(f) { const rows = $("linesBody").querySelectorAll("tr[data-i]"); const r = rows[rows.length - 1]; if (r) { const el = r.querySelector(`[data-f="${f}"]`); if (el) el.focus(); } }
+
+function addItem(gid, idx) {
+  const g = gridById(gid); const it = g.items[idx];
+  let des = it.des; if ($("withDetail").checked && it.det) des += "\n" + it.det;
+  S.cur.lines.push({ id: uid(), kind: "item", ref: it.ref, des, pu: it.price, qt: 1, src: gid });
+  if (!activeGridIds().includes(gid)) { S.cur.extraGrids = (S.cur.extraGrids || []).concat(gid); renderCatalog(); }
+  renderLines(); markDirty();
+  toast(`Ajouté : ${it.ref || it.des.slice(0, 40)}${it.price === null ? " (prix à saisir)" : ""}`);
+}
+
+/* ---------------- catalogue panel ---------------- */
+function renderChips() {
+  const d = S.cur; const own = gridsOfDo(d.doCode); const extra = (d.extraGrids || []).filter((id) => !own.includes(id) && gridById(id));
+  const html = [`<span class="chip fixed" title="Toujours affichée"><span>Grille Bugbusters (Mobility4)</span></span>`];
+  own.forEach((id) => html.push(`<span class="chip fixed do" title="${esc(gridById(id).name)}"><span>${esc(gridById(id).name)}</span></span>`));
+  extra.forEach((id) => html.push(`<span class="chip extra" title="${esc(gridById(id).name)}"><span>${esc(gridById(id).name)}</span><button type="button" data-rm="${esc(id)}" aria-label="Retirer ce BPU">×</button></span>`));
+  $("gridChips").innerHTML = html.join("");
+  $("catDo").textContent = d.doName ? "· " + d.doName : "";
+  // picker: by DO, then unattached grids
+  const active = activeGridIds(); const m = mapping();
+  const byDo = Object.keys(m).filter((c) => (m[c] || []).some((id) => gridById(id) && !active.includes(id)))
+    .sort((a, b) => doName(a).localeCompare(doName(b)));
+  const attached = new Set(Object.values(m).flat());
+  const loose = allGrids().filter((g) => g.id !== "mobility" && !attached.has(g.id) && !active.includes(g.id));
+  let opts = `<option value="">Choisir un DO ou un BPU…</option>`;
+  if (byDo.length) opts += `<optgroup label="BPU d'un autre DO">` + byDo.map((c) => {
+    const ids = m[c].filter((id) => gridById(id) && !active.includes(id));
+    return `<option value="do:${esc(c)}">${esc(doName(c))} (${ids.length} BPU · ${ids.reduce((s, id) => s + gridById(id).items.length, 0)} prestations)</option>`;
+  }).join("") + `</optgroup>`;
+  if (loose.length) opts += `<optgroup label="BPU sans DO rattaché">` + loose.map((g) => `<option value="g:${esc(g.id)}">${esc(g.name)} (${g.items.length})</option>`).join("") + `</optgroup>`;
+  $("addGrid").innerHTML = opts;
+}
+function itemHtml(gid, it, idx, showFrom) {
+  const priceTxt = it.price === null ? `<span class="price none">Prix à saisir</span>` : `<span class="price">${money(it.price)}</span>`;
+  return `<button type="button" class="item" data-g="${esc(gid)}" data-x="${idx}">
+    <span class="ref">${esc(it.ref || "—")}</span>${priceTxt}
+    <span class="des">${esc(it.des)}</span>
+    ${it.det ? `<span class="det">${esc(it.det)}</span>` : ""}
+    ${it.unit ? `<span class="unit" style="grid-column:1/-1;text-align:left">${esc(it.unit)}</span>` : ""}
+    ${showFrom ? `<span class="from">${esc(showFrom)}</span>` : ""}
+  </button>`;
+}
+function renderCatalog() {
+  if (!S.catalog || !S.cur) return;
+  renderChips();
+  const q = norm($("catSearch").value.trim()); const words = q.split(/\s+/).filter(Boolean);
+  const own = gridsOfDo(S.cur.doCode);
+  const ids = S.scopeAll && q ? allGrids().map((g) => g.id) : activeGridIds();
+  const active = activeGridIds();
+  let html = ""; let total = 0;
+  ids.forEach((gid) => {
+    const g = gridById(gid); if (!g) return;
+    const hits = []; g.items.forEach((it, idx) => {
+      if (!words.length || words.every((w) => norm(it.ref + " " + it.des + " " + it.det + " " + it.cat).includes(w))) hits.push([it, idx]);
+    });
+    if (!hits.length) return; total += hits.length;
+    const tag = gid === "mobility" ? `<span class="tag">Toujours</span>` : own.includes(gid) ? `<span class="tag do">BPU du DO</span>` : active.includes(gid) ? `<span class="tag extra">Ajouté</span>` : `<span class="tag">${esc(dosOfGrid(gid).map(doName).join(", ") || "Sans DO")}</span>`;
+    let body = ""; let lastCat = null;
+    hits.forEach(([it, idx]) => { if (it.cat !== lastCat) { body += `<div class="cat-sub">${esc(it.cat || "Divers")}</div>`; lastCat = it.cat; } body += itemHtml(gid, it, idx); });
+    html += `<details class="cat-grid" ${q || ids.length < 4 || gid !== "mobility" ? "open" : ""}><summary><b>${esc(g.name)}</b>${tag}<span class="count">${hits.length}</span></summary>${body}</details>`;
+  });
+  $("catBody").innerHTML = html || (q ? `<div class="cat-empty">Aucune prestation ne correspond à « ${esc($("catSearch").value)} »${S.scopeAll ? "" : ". Essayez « Tous les BPU » pour chercher chez les autres DO"}.</div>` : `<div class="cat-empty">Aucune prestation.</div>`);
+  $("fab").textContent = `Prestations (${total})`;
+}
+function bindCatalog() {
+  $("catBody").addEventListener("click", (e) => { const b = e.target.closest(".item"); if (b) addItem(b.dataset.g, +b.dataset.x); });
+  $("gridChips").addEventListener("click", (e) => { const b = e.target.closest("[data-rm]"); if (!b) return; S.cur.extraGrids = (S.cur.extraGrids || []).filter((id) => id !== b.dataset.rm); renderCatalog(); markDirty(); });
+  $("addGrid").addEventListener("change", (e) => {
+    const v = e.target.value; if (!v) return; const add = v.startsWith("do:") ? (mapping()[v.slice(3)] || []) : [v.slice(2)];
+    const cur = new Set(S.cur.extraGrids || []); add.forEach((id) => gridById(id) && cur.add(id)); S.cur.extraGrids = [...cur];
+    renderCatalog(); markDirty(); toast(v.startsWith("do:") ? `BPU de ${doName(v.slice(3))} ajoutés aux prestations` : "BPU ajouté aux prestations");
+  });
+  let t; $("catSearch").addEventListener("input", () => { clearTimeout(t); t = setTimeout(renderCatalog, 120); });
+  const setScope = (all) => { S.scopeAll = all; $("scopeAll").setAttribute("aria-pressed", all); $("scopeMine").setAttribute("aria-pressed", !all); renderCatalog(); };
+  $("scopeAll").addEventListener("click", () => setScope(true)); $("scopeMine").addEventListener("click", () => setScope(false));
+  $("fab").addEventListener("click", () => { $("catalog").classList.add("open"); $("catSearch").focus(); });
+  $("btnCloseCat").addEventListener("click", () => $("catalog").classList.remove("open"));
+}
+
+/* ---------------- save / open / duplicate ---------------- */
+async function saveCurrent(silent) {
+  if (S.readOnly || !S.storeReady) return;
+  clearTimeout(autosaveT);
+  const d = S.cur; const now = Date.now();
+  if (!d.id) { d.id = Store.newId(); d.createdAt = now; }
+  if (!d.num) d.num = nextNumber();
+  d.updatedAt = now;
+  const body = JSON.parse(JSON.stringify(d));
+  const ok = await Store.saveDevis(body);
+  if (!ok) return;
+  S.dirty = false; lsSet("bbcrm:last", d.id); renderHead();
+  // remember the DO address like Mobility4 does
+  if (d.doCode && d.doAddress !== undefined) {
+    const prev = S.doAddr[d.doCode]; const nv = { address: d.doAddress || "", cpVille: d.doCpVille || "", accompte: !!d.accompte };
+    if (!prev || prev.address !== nv.address || prev.cpVille !== nv.cpVille || prev.accompte !== nv.accompte) {
+      S.doAddr = { ...S.doAddr, [d.doCode]: nv }; await Store.saveConfig("doaddr", { map: S.doAddr });
+    }
+  }
+  if (!silent) toast(`Devis ${d.num} enregistré`);
+}
+function openDevis(id) {
+  const d = S.devis.find((x) => x.id === id); if (!d) return;
+  S.cur = normalizeDevis(JSON.parse(JSON.stringify(d))); S.dirty = false; lsSet("bbcrm:last", id);
+  loadIntoForm(); showView("devis");
+}
+function normalizeDevis(d) {
+  const b = blankDevis(); const out = { ...b, ...d, client: { ...b.client, ...(d.client || {}) } };
+  out.lines = (d.lines || []).map((l) => ({ id: l.id || uid(), kind: l.kind || "item", ref: l.ref || "", des: l.des || "", pu: l.pu ?? null, qt: l.qt ?? 1, src: l.src || "" }));
+  out.extraGrids = d.extraGrids || []; return out;
+}
+function newDevis() { S.cur = blankDevis(); S.dirty = false; loadIntoForm(); showView("devis"); $("f-do").focus(); }
+function duplicateDevis(src) {
+  const d = normalizeDevis(JSON.parse(JSON.stringify(src)));
+  d.id = null; d.num = ""; d.status = "brouillon"; d.createdAt = null; d.updatedAt = null; d.validite = addDays(todayISO(), 30);
+  d.lines.forEach((l) => (l.id = uid()));
+  S.cur = d; S.dirty = true; loadIntoForm(); showView("devis"); toast("Copie créée : enregistrez-la pour lui donner un numéro");
+}
+
+/* ---------------- PDF ---------------- */
+/*PDFDOC-START*/
+function buildPdfDoc(d, company, logo, forWhom) {
+  const C = { teal: "#044E67", line: "#2E4E4E", text: "#1B1B1B" };
+  const t = (function () { const ht = Math.round(d.lines.reduce((s, l) => s + (l.kind === "text" ? 0 : (Number(l.pu) || 0) * (Number(l.qt) || 0)), 0) * 100) / 100; const tva = Math.round(ht * (Number(d.tva) || 0)) / 100; return { ht, tva, ttc: Math.round((ht + tva) * 100) / 100 }; })();
+  const m = (n) => { const v = Math.round((Number(n) || 0) * 100) / 100; const neg = v < 0; const [i, dd] = Math.abs(v).toFixed(2).split("."); return (neg ? "-" : "") + i.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + "," + dd + " €"; };
+  const q = (n) => { const v = Math.round((Number(n) || 0) * 100) / 100; return Number.isInteger(v) ? String(v) : String(v).replace(".", ","); };
+  const fd = (iso) => { if (!iso) return ""; const p = iso.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; };
+  const bill = forWhom === "client"
+    ? [d.client.name, d.client.address, d.client.cpVille]
+    : [d.doName, d.doAddress, d.doCpVille];
+  const ship = [d.client.name, d.client.address, d.client.cpVille];
+  const addrBlock = (title, lines) => ({ stack: [{ text: title, color: C.teal, decoration: "underline", fontSize: 9, margin: [0, 0, 0, 6] }].concat(lines.filter(Boolean).map((x, i) => ({ text: x, fontSize: i === 0 ? 9.5 : 9 }))) });
+  const lab = (x) => ({ text: x, bold: true, color: C.teal, fontSize: 9 });
+  const infoRows = [[lab("REF CLIENT / REF SITE"), { text: d.reference || "", fontSize: 9 }]];
+  if (d.refBTE) infoRows.push([lab("RÉFÉRENCE BTE"), { text: d.refBTE, fontSize: 9 }]);
+  infoRows.push([lab("N° DE DEVIS"), { text: d.num || "", fontSize: 9 }]);
+  infoRows.push([lab("MODE DE RÈGLEMENT"), { text: d.mode || "", fontSize: 9, color: C.teal }]);
+  infoRows.push([lab("VALIDITÉ DU DEVIS"), { text: fd(d.validite), fontSize: 9 }]);
+  const th = (x, al) => ({ text: x, bold: true, color: C.teal, fontSize: 9, alignment: al || "center", margin: [0, 3, 0, 3] });
+  const body = [[th("RÉFÉRENCE"), th("DÉSIGNATION"), th("PRIX UNITAIRE H.T."), th("QTÉ"), th("MONTANT H.T.")]];
+  d.lines.forEach((l) => {
+    if (l.kind === "text") body.push([{ text: "" }, { text: l.des || "", fontSize: 8.5, italics: true, colSpan: 4 }, {}, {}, {}]);
+    else body.push([
+      { text: l.ref || "", fontSize: 8.5, alignment: "center" },
+      { text: l.des || "", fontSize: 8.5 },
+      { text: l.pu === null || l.pu === undefined ? "" : m(l.pu), fontSize: 8.5, alignment: "right" },
+      { text: q(l.qt), fontSize: 8.5, alignment: "center" },
+      { text: m((Number(l.pu) || 0) * (Number(l.qt) || 0)), fontSize: 8.5, alignment: "right" }
+    ]);
+  });
+  if (body.length === 1) body.push([{ text: "" }, { text: "", fontSize: 8.5 }, { text: "" }, { text: "" }, { text: "" }]);
+  const grid = { hLineColor: () => C.line, vLineColor: () => C.line, hLineWidth: () => 0.6, vLineWidth: () => 0.6, paddingTop: () => 3, paddingBottom: () => 3 };
+  const cond = d.accompte ? company.condAcc : company.cond30;
+  const headLeft = { stack: [
+    { text: company.name || "", bold: true, fontSize: 15, color: C.teal },
+    { text: company.addr1 || "", fontSize: 11, color: C.teal, margin: [0, 6, 0, 0] },
+    { text: company.addr2 || "", fontSize: 11, color: C.teal }
+  ] };
+  const head = logo ? { columns: [headLeft, { image: logo, fit: [78, 78], alignment: "right", width: 90 }], columnGap: 10 } : headLeft;
+  const footer = (page, pages) => ({ margin: [36, 6, 36, 0], stack: [
+    { text: company.foot1 || "", fontSize: 7, alignment: "center", color: C.text },
+    { text: company.foot2 || "", fontSize: 7, alignment: "center", color: C.text, margin: [0, 2, 0, 0] },
+    { text: pages > 1 ? "Page " + page + " / " + pages : "", fontSize: 7, alignment: "right", color: "#666666", margin: [0, 2, 0, 0] }
+  ] });
+  return {
+    pageSize: "A4", pageMargins: [36, 36, 36, 60],
+    info: { title: "Devis " + (d.num || ""), author: company.name || "", subject: d.client.name || "" },
+    defaultStyle: { font: "Roboto", fontSize: 9, color: C.text },
+    footer,
+    content: [
+      head,
+      { columns: [addrBlock("Adresse de FACTURATION :", bill), addrBlock("Adresse de LIVRAISON :", ship)], columnGap: 40, margin: [0, 18, 0, 0] },
+      { text: "DEVIS", bold: true, fontSize: 22, color: C.teal, margin: [0, 18, 0, 6] },
+      { table: { widths: [150, "*"], body: infoRows }, layout: grid },
+      { table: { headerRows: 1, dontBreakRows: true, widths: [72, "*", 70, 30, 72], body }, layout: grid, margin: [0, 12, 0, 0] },
+      { columns: [{ width: "*", text: "" }, { width: "auto", table: { widths: [86, 86, 86], body: [[th("TOTAL H.T."), th("MONTANT TVA"), th("NET À PAYER")], [
+        { text: m(t.ht), alignment: "right", fontSize: 9 }, { text: m(t.tva), alignment: "right", fontSize: 9 }, { text: m(t.ttc), alignment: "right", fontSize: 9, bold: true }]] }, layout: grid }],
+        margin: [0, 12, 0, 0], unbreakable: true },
+      { table: { widths: ["*"], body: [[{ text: cond || "", bold: true, color: C.teal, fontSize: 8, alignment: "center", lineHeight: 1.5, margin: [8, 6, 8, 6] }]] }, layout: grid, margin: [0, 14, 0, 0], unbreakable: true },
+      { text: "Signature/Tampon précédé de la date et de la mention\n\"Bon pour accord\"", bold: true, color: C.teal, fontSize: 10, alignment: "center", margin: [0, 8, 0, 0] }
+    ]
+  };
+}
+/*PDFDOC-END*/
+function pdfFileName(d, forWhom) {
+  const parts = ["PR", d.reference || d.num || "devis", d.client.name, d.client.cpVille].map((x) => String(x || "").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim()).filter(Boolean);
+  return parts.join(" - ") + (forWhom === "client" ? " (client final)" : " (DO)") + ".pdf";
+}
+let downloads = null;
+/* Save a generated file: Claude artifact viewer (downloads capability) or a normal website (GitHub Pages, local file). */
+async function saveFile(name, blob) {
+  if (downloads) {
+    try { await downloads.save({ filename: name, data: blob }); return true; }
+    catch (e) { if (e && e.code === "declined") toast("Téléchargement annulé"); else if (e && e.code === "rate_limited") toast("Une demande de téléchargement est déjà ouverte"); else toast("Téléchargement indisponible dans cette vue"); return false; }
+  }
+  try {
+    const url = URL.createObjectURL(blob); const a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000); return true;
+  } catch (e) { toast("Téléchargement indisponible dans cette vue"); return false; }
+}
+async function makePdf(forWhom, other) {
+  if (!window.pdfMake || !pdfMake.createPdf) { toast("Le module PDF ne s'est pas chargé. Vérifiez la connexion internet puis rechargez la page."); return; }
+  if (!other && S.dirty && !S.readOnly && S.storeReady) await saveCurrent(true);
+  const d = other ? normalizeDevis(other) : S.cur; const logo = S.company.logo || DEFAULT_LOGO;
+  const doc = buildPdfDoc(d, S.company, logo, forWhom);
+  const name = pdfFileName(d, forWhom);
+  pdfMake.createPdf(doc).getBlob(async (blob) => { if (await saveFile(name, blob)) toast("PDF prêt : " + name); });
+}
+
+/* ---------------- backup (export / import) ---------------- */
+async function exportAll() {
+  const data = { app: "devis-bugbusters", version: 1, exportedAt: new Date().toISOString(),
+    devis: S.devis, grids: Object.values(S.custom), config: { company: S.company, mapping: S.mapping ? { map: S.mapping } : null, doaddr: { map: S.doAddr } } };
+  const name = "devis-bugbusters-sauvegarde-" + todayISO() + ".json";
+  if (await saveFile(name, new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }))) toast(`Sauvegarde exportée : ${S.devis.length} devis`);
+}
+async function importAll(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch (e) { toast("Ce fichier n'est pas une sauvegarde lisible (.json)"); return; }
+  if (!data || data.app !== "devis-bugbusters") { toast("Ce fichier ne vient pas de Devis Bugbusters"); return; }
+  let nD = 0, nG = 0;
+  for (const d of data.devis || []) { if (d && d.id && Array.isArray(d.lines)) { const prev = S.devis.find((x) => x.id === d.id); if (!prev || (d.updatedAt || 0) >= (prev.updatedAt || 0)) { if (!(await Store.saveDevis(d))) return; nD++; } } }
+  for (const g of data.grids || []) { if (g && g.id && Array.isArray(g.items)) { if (!(await Store.saveGrid(g))) return; nG++; } }
+  const c = data.config || {};
+  if (c.company) await Store.saveConfig("company", { ...DEFAULT_COMPANY, ...c.company });
+  if (c.mapping && c.mapping.map) await Store.saveConfig("mapping", c.mapping);
+  if (c.doaddr && c.doaddr.map) await Store.saveConfig("doaddr", { map: { ...S.doAddr, ...c.doaddr.map } });
+  toast(`Import terminé : ${nD} devis, ${nG} BPU`);
+}
+
+/* ---------------- list view ---------------- */
+let armedDel = null; let trashRows = [];
+const fmtDT = (v) => { const d = typeof v === "number" ? new Date(v) : new Date(v || 0); return isNaN(d) ? "" : d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); };
+async function renderList() {
+  const q = norm($("listSearch").value); const st = $("listStatus").value;
+  const match = (d) => !q || norm([d.num, d.doName, d.client && d.client.name, d.client && d.client.cpVille, d.reference, d.ticket, d.updatedBy].join(" ")).includes(q);
+  if (st === "__trash") {
+    trashRows = await Store.listTrash(); const rows = trashRows.filter(match);
+    if (!rows.length) { $("listWrap").innerHTML = `<div class="empty-state"><b>Corbeille vide</b>Les devis supprimés apparaissent ici et peuvent être restaurés.</div>`; return; }
+    $("listWrap").innerHTML = `<table class="data"><thead><tr><th>N°</th><th>Supprimé le</th><th>Par</th><th>DO</th><th>Client final</th><th class="r">Total HT</th><th class="r">Actions</th></tr></thead><tbody>` +
+      rows.map((d) => `<tr data-id="${esc(d.id)}"><td class="mono">${esc(d.num)}</td><td class="num">${fmtDT(d.deletedAt)}</td><td>${esc(d.updatedBy || "")}</td><td>${esc(d.doName)}</td><td>${esc(d.client && d.client.name)}</td><td class="r money">${money(totals(d).ht)}</td>
+      <td class="r" style="white-space:nowrap"><button class="btn sm" data-a="hist">Historique</button> <button class="btn sm primary" data-a="restore" ${S.readOnly ? "disabled" : ""}>Restaurer</button></td></tr>`).join("") + `</tbody></table>`;
+    return;
+  }
+  const rows = S.devis.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).filter((d) => (!st || d.status === st) && match(d));
+  if (!S.devis.length) { $("listWrap").innerHTML = `<div class="empty-state"><b>Aucun devis enregistré</b>Créez un devis, choisissez le DO et le client, puis cliquez sur Enregistrer.</div>`; return; }
+  if (!rows.length) { $("listWrap").innerHTML = `<div class="empty-state"><b>Aucun résultat</b>Modifiez la recherche ou le filtre de statut.</div>`; return; }
+  const hist = Store.features.history;
+  $("listWrap").innerHTML = `<table class="data"><thead><tr><th>N°</th><th>Modifié</th><th>DO</th><th>Client final</th><th>Réf. client / site</th><th class="r">Total HT</th><th>Statut</th><th class="r">Actions</th></tr></thead><tbody>` +
+    rows.map((d) => `<tr class="click" data-id="${esc(d.id)}"><td class="mono">${esc(d.num)}</td><td class="num">${d.updatedAt ? new Date(d.updatedAt).toLocaleDateString("fr-FR") : ""}${d.updatedBy ? `<div class="muted" style="font-size:12px">${esc(d.updatedBy)}</div>` : ""}</td><td>${esc(d.doName)}</td><td>${esc(d.client && d.client.name)}<div class="muted" style="font-size:12px">${esc(d.client && d.client.cpVille)}</div></td><td>${esc(d.reference)}</td><td class="r money">${money(totals(d).ht)}</td><td><span class="status-chip st-${esc(d.status || "brouillon")}">${esc(STATUS[d.status] || "Brouillon")}</span></td>
+    <td class="r" style="white-space:nowrap">${hist ? `<button class="btn sm" data-a="hist">Historique</button> ` : ""}<button class="btn sm" data-a="dup">Dupliquer</button> <button class="btn sm danger ${armedDel === d.id ? "armed" : ""}" data-a="del" ${S.readOnly ? "disabled" : ""}>${armedDel === d.id ? "Confirmer" : "Supprimer"}</button></td></tr>`).join("") + `</tbody></table>`;
+}
+function bindList() {
+  $("listSearch").addEventListener("input", () => renderList()); $("listStatus").addEventListener("change", () => renderList());
+  $("listWrap").addEventListener("click", async (e) => {
+    const tr = e.target.closest("tr[data-id]"); if (!tr) return; const id = tr.dataset.id; const b = e.target.closest("button[data-a]");
+    if (!b) { if (tr.classList.contains("click")) openDevis(id); return; }
+    if (b.dataset.a === "hist") { const d = S.devis.find((x) => x.id === id) || trashRows.find((x) => x.id === id); openHistory(id, d); }
+    if (b.dataset.a === "dup") duplicateDevis(S.devis.find((x) => x.id === id));
+    if (b.dataset.a === "restore") { if (await Store.restoreDevis(id)) { toast("Devis restauré"); renderList(); } }
+    if (b.dataset.a === "del") {
+      if (armedDel !== id) { armedDel = id; renderList(); setTimeout(() => { if (armedDel === id) { armedDel = null; renderList(); } }, 4000); return; }
+      armedDel = null; const d = S.devis.find((x) => x.id === id);
+      if (await Store.deleteDevis(id)) { toast(`Devis ${d ? d.num : ""} supprimé${Store.features.trash ? " (récupérable dans la corbeille)" : ""}`); if (S.cur && S.cur.id === id) newDevis(); }
+    }
+  });
+}
+
+/* ---------------- history (Supabase version) ---------------- */
+const ACT = { "création": "Création", "modification": "Modification", "statut": "Statut", "suppression": "Suppression", "restauration": "Restauration" };
+function openModal(title, html) { $("modalTitle").textContent = title; $("modalBody").innerHTML = html; $("modal").hidden = false; $("modalClose").focus(); }
+function closeModal() { $("modal").hidden = true; $("modalBody").innerHTML = ""; }
+let histCtx = null; let armedRestore = null;
+async function openHistory(devisId, d) {
+  histCtx = { devisId, d };
+  openModal(`Historique du devis ${d && d.num ? d.num : ""}`, `<div class="empty-state">Chargement…</div>`);
+  const rows = await Store.history(devisId); histCtx.rows = rows; renderHistoryModal();
+}
+function renderHistoryModal() {
+  const rows = histCtx.rows || [];
+  const d = histCtx.d || {};
+  $("modalBody").innerHTML = (d.client ? `<p class="muted" style="margin:12px 16px 4px;font-size:13px">${esc(d.doName || "")} → ${esc(d.client.name || "")} ${esc(d.client.cpVille || "")}</p>` : "") +
+    (rows.length ? `<div style="overflow-x:auto"><table class="data" style="min-width:620px"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Statut</th><th class="r">Total HT</th><th class="r">Version</th></tr></thead><tbody>` +
+    rows.map((r, i) => `<tr data-h="${r.id}"><td class="num">${fmtDT(r.created_at)}</td><td>${esc(r.auteur || "—")}</td><td><span class="act act-${esc(r.action)}">${esc(ACT[r.action] || r.action)}</span></td><td>${r.status ? `<span class="status-chip st-${esc(r.status)}">${esc(STATUS[r.status] || r.status)}</span>` : ""}</td><td class="r money">${r.total_ht !== null && r.total_ht !== undefined ? money(Number(r.total_ht)) : ""}</td>
+      <td class="r" style="white-space:nowrap"><button class="btn sm" data-v="pdf">PDF</button> ${i === 0 ? `<span class="muted" style="font-size:12px">actuelle</span>` : `<button class="btn sm ${armedRestore === r.id ? "danger armed" : ""}" data-v="restore" ${S.readOnly ? "disabled" : ""}>${armedRestore === r.id ? "Confirmer" : "Restaurer"}</button>`}</td></tr>`).join("") + `</tbody></table></div>`
+    : `<div class="empty-state"><b>Pas encore d'historique</b>L'historique démarre au premier enregistrement.</div>`);
+}
+function bindHistory() {
+  $("modalClose").addEventListener("click", closeModal);
+  $("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("modal").hidden) closeModal(); });
+  $("modalBody").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-v]"); if (!b || !histCtx) return; const hid = +b.closest("tr").dataset.h;
+    const data = await Store.version(hid); if (!data) return;
+    if (b.dataset.v === "pdf") { makePdf("do", { ...data, id: histCtx.devisId }); return; }
+    if (b.dataset.v === "restore") {
+      if (armedRestore !== hid) { armedRestore = hid; renderHistoryModal(); setTimeout(() => { if (armedRestore === hid) { armedRestore = null; if (!$("modal").hidden) renderHistoryModal(); } }, 4000); return; }
+      armedRestore = null;
+      const cur = S.devis.find((x) => x.id === histCtx.devisId);
+      if (!cur) { const ok = await Store.restoreDevis(histCtx.devisId); if (!ok) return; }
+      const restored = normalizeDevis({ ...data, id: histCtx.devisId, num: data.num || (cur && cur.num) || "", createdAt: (cur && cur.createdAt) || data.createdAt });
+      S.cur = restored; S.dirty = true; await saveCurrent(true); loadIntoForm(); closeModal(); showView("devis");
+      toast(`Version du ${fmtDT(data.updatedAt)} restaurée`);
+    }
+  });
+  $("histoSearch").addEventListener("input", renderJournalRows);
+  $("btnHistoRefresh").addEventListener("click", renderJournal);
+  $("histoWrap").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-d]"); if (!tr) return; const id = tr.dataset.d; const d = S.devis.find((x) => x.id === id) || { num: tr.dataset.n }; openHistory(id, d); });
+}
+let journalRows = [];
+async function renderJournal() { $("histoWrap").innerHTML = `<div class="empty-state">Chargement…</div>`; journalRows = await Store.journal(); renderJournalRows(); }
+function renderJournalRows() {
+  const q = norm($("histoSearch").value);
+  const rows = journalRows.filter((r) => !q || norm([r.num, r.auteur, r.name, r.doName, r.action].join(" ")).includes(q));
+  $("histoWrap").innerHTML = rows.length ? `<table class="data"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Devis</th><th>DO</th><th>Client final</th><th>Statut</th><th class="r">Total HT</th></tr></thead><tbody>` +
+    rows.map((r) => `<tr class="click" data-d="${esc(r.devis_id)}" data-n="${esc(r.num || "")}"><td class="num">${fmtDT(r.created_at)}</td><td>${esc(r.auteur || "—")}</td><td><span class="act act-${esc(r.action)}">${esc(ACT[r.action] || r.action)}</span></td><td class="mono">${esc(r.num || "")}</td><td>${esc(r.doName || "")}</td><td>${esc(r.name || "")}</td><td>${r.status ? `<span class="status-chip st-${esc(r.status)}">${esc(STATUS[r.status] || r.status)}</span>` : ""}</td><td class="r money">${r.total_ht !== null && r.total_ht !== undefined ? money(Number(r.total_ht)) : ""}</td></tr>`).join("") + `</tbody></table>`
+    : `<div class="empty-state"><b>${journalRows.length ? "Aucun résultat" : "Aucune activité"}</b>${journalRows.length ? "Modifiez la recherche." : "Les créations et modifications de devis apparaîtront ici."}</div>`;
+}
+
+/* ---------------- catalogue import (Supabase version) ---------------- */
+async function importCatalogFile(file) {
+  let cat; try { cat = JSON.parse(await file.text()); } catch (e) { toast("Ce fichier n'est pas un catalogue lisible"); return; }
+  if (!cat || !Array.isArray(cat.grids) || !Array.isArray(cat.dos) || !cat.mapping) { toast("Ce fichier n'est pas catalog.json"); return; }
+  toast("Import du catalogue en cours…");
+  if (!(await Store.importCatalog(cat))) return;
+  S.catalog = await Store.loadCatalog(); afterCatalog();
+  toast(`Catalogue importé : ${cat.grids.length} BPU, ${cat.dos.length} DO`);
+}
+function afterCatalog() {
+  $("doList").innerHTML = S.catalog.dos.map((d) => `<option value="${esc(d.name)}"></option>`).join("");
+  const empty = !S.catalog.grids.length;
+  if (Store.features.catalogImport) {
+    $("catalogImport").hidden = false;
+    $("catalogImport").style.borderColor = empty ? "var(--accent)" : "";
+    $("catalogImportTitle").textContent = empty ? "Étape 1 : charger les BPU" : "Catalogue des BPU";
+    const b = $("banner");
+    if (empty) { b.hidden = false; b.className = "banner note"; b.innerHTML = `La base ne contient pas encore les BPU. Ouvrez <a href="#bpu" id="goImport" style="color:inherit;font-weight:700">BPU &amp; DO</a> et importez le fichier catalog.json.`; $("goImport").onclick = (e) => { e.preventDefault(); showView("bpu"); }; }
+    else if (b.querySelector && b.querySelector("#goImport")) b.hidden = true;
+  }
+  renderCatalog(); if (!$("view-bpu").hidden) renderBpu();
+}
+
+/* ---------------- BPU & DO view ---------------- */
+let openGrid = null; let editing = null; let armedGrid = null;
+function renderBpu() {
+  const q = norm($("bpuSearch").value);
+  const list = allGrids().filter((g) => !q || norm(g.name + " " + (g.source || "") + " " + dosOfGrid(g.id).map(doName).join(" ")).includes(q));
+  $("bpuList").innerHTML = list.map((g) => {
+    const isCustom = !!S.custom[g.id]; const dos = dosOfGrid(g.id); const always = g.id === "mobility";
+    const missing = g.items.filter((i) => i.price === null).length;
+    return `<div class="bpu" data-g="${esc(g.id)}">
+      <div class="bpu-top"><h3>${esc(g.name)}</h3><span class="muted">${g.items.length} prestations${missing ? ` · ${missing} sans prix` : ""}</span>
+        <div class="actions"><button class="btn sm" data-a="view">${openGrid === g.id ? "Masquer" : "Voir les prestations"}</button>
+        <button class="btn sm" data-a="copy" ${S.readOnly ? "disabled" : ""}>Dupliquer pour modifier</button>
+        ${isCustom ? `<button class="btn sm" data-a="edit" ${S.readOnly ? "disabled" : ""}>Modifier</button><button class="btn sm danger ${armedGrid === g.id ? "armed" : ""}" data-a="del" ${S.readOnly ? "disabled" : ""}>${armedGrid === g.id ? "Confirmer" : "Supprimer"}</button>` : ""}</div></div>
+      <div class="src-file">${isCustom ? "Créé dans ce CRM" : "Source : " + esc(g.source || "")}</div>
+      ${always ? `<div class="note info">Affichée pour tous les devis, quel que soit le DO.</div>` : `<div class="assign"><span class="label">DO rattachés</span><div class="chips">${dos.length ? dos.map((c) => `<span class="chip"><span>${esc(doName(c))}</span><button type="button" data-unassign="${esc(c)}" aria-label="Détacher ${esc(doName(c))}" ${S.readOnly ? "disabled" : ""}>×</button></span>`).join("") : `<span class="muted" style="font-size:12px">Aucun : disponible via « Utiliser aussi le BPU de… »</span>`}</div>
+        <input type="text" list="doList" placeholder="Rattacher un DO…" data-assign aria-label="Rattacher un DO à ce BPU" ${S.readOnly ? "disabled" : ""}></div>`}
+      ${openGrid === g.id ? `<div class="mini-table"><table><thead><tr><th>Catégorie</th><th>Réf.</th><th>Désignation</th><th>Unité</th><th style="text-align:right">Prix HT</th></tr></thead><tbody>${g.items.map((i) => `<tr><td class="muted">${esc(i.cat)}</td><td class="mono">${esc(i.ref)}</td><td>${esc(i.des)}${i.det ? `<div class="muted" style="font-size:12px">${esc(i.det)}</div>` : ""}</td><td>${esc(i.unit)}</td><td class="money" style="text-align:right;white-space:nowrap">${i.price === null ? "—" : money(i.price)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+    </div>`;
+  }).join("") || `<div class="empty-state"><b>Aucun BPU trouvé</b>Modifiez la recherche.</div>`;
+}
+async function setMapping(next) { S.mapping = next; renderBpu(); if (S.cur) renderCatalog(); await Store.saveConfig("mapping", { map: next }); }
+function bindBpu() {
+  $("bpuSearch").addEventListener("input", renderBpu);
+  $("bpuList").addEventListener("click", async (e) => {
+    const card = e.target.closest(".bpu"); if (!card) return; const gid = card.dataset.g; const g = gridById(gid);
+    const un = e.target.closest("[data-unassign]");
+    if (un) { const m = JSON.parse(JSON.stringify(mapping())); const c = un.dataset.unassign; m[c] = (m[c] || []).filter((x) => x !== gid); if (!m[c].length) delete m[c]; await setMapping(m); toast(`${doName(c)} détaché de ce BPU`); return; }
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    if (b.dataset.a === "view") { openGrid = openGrid === gid ? null : gid; renderBpu(); }
+    if (b.dataset.a === "copy") { startGridEditor({ id: "c" + uid().slice(0, 12), name: g.name.replace(/ – .*$/, "") + " – copie modifiable", source: "Créé dans ce CRM", items: JSON.parse(JSON.stringify(g.items)) }, gid); }
+    if (b.dataset.a === "edit") startGridEditor(JSON.parse(JSON.stringify(S.custom[gid])));
+    if (b.dataset.a === "del") {
+      if (armedGrid !== gid) { armedGrid = gid; renderBpu(); setTimeout(() => { if (armedGrid === gid) { armedGrid = null; renderBpu(); } }, 4000); return; }
+      armedGrid = null; const m = JSON.parse(JSON.stringify(mapping())); Object.keys(m).forEach((c) => { m[c] = m[c].filter((x) => x !== gid); if (!m[c].length) delete m[c]; });
+      await Store.deleteGrid(gid); await setMapping(m); toast("BPU supprimé");
+    }
+  });
+  $("bpuList").addEventListener("change", async (e) => {
+    const inp = e.target.closest("[data-assign]"); if (!inp) return; const gid = inp.closest(".bpu").dataset.g; const t = inp.value.trim().toLowerCase();
+    const found = S.catalog.dos.find((d) => d.name.toLowerCase() === t || d.code.toLowerCase() === t);
+    if (!found) { toast("DO introuvable : choisissez un nom dans la liste"); return; }
+    const m = JSON.parse(JSON.stringify(mapping())); m[found.code] = Array.from(new Set((m[found.code] || []).concat(gid))); await setMapping(m);
+    toast(`BPU rattaché à ${found.name}`);
+  });
+  $("btnNewGrid").addEventListener("click", () => startGridEditor({ id: "c" + uid().slice(0, 12), name: "", source: "Créé dans ce CRM", items: [{ cat: "Wifi", ref: "", des: "", det: "", unit: "U", price: null }] }));
+}
+function startGridEditor(g, replaceOf) {
+  editing = { g, replaceOf: replaceOf || null }; const box = $("gridEditor"); box.hidden = false;
+  const rows = g.items.map((i, k) => `<tr data-k="${k}"><td><input type="text" data-f="cat" value="${esc(i.cat)}"></td><td><input type="text" class="mono" data-f="ref" value="${esc(i.ref)}"></td><td><input type="text" data-f="des" value="${esc(i.des)}"></td><td><input type="text" data-f="unit" value="${esc(i.unit)}" style="width:80px"></td><td><input type="text" inputmode="decimal" data-f="price" value="${i.price === null ? "" : esc(fmtNum(i.price))}" style="width:90px;text-align:right"></td><td><button class="icon-btn" data-del="${k}" aria-label="Supprimer la ligne">✕</button></td></tr>`).join("");
+  box.innerHTML = `<div class="panel stack" style="margin-bottom:14px;border-color:var(--accent)">
+    <h2>${S.custom[g.id] ? "Modifier le BPU" : "Nouveau BPU"}</h2>
+    <label class="field"><span>Nom du BPU</span><input type="text" id="ge-name" value="${esc(g.name)}" placeholder="ex. HIGH-COM – Wifi et caméras"></label>
+    <div class="mini-table" style="max-height:420px"><table><thead><tr><th>Catégorie</th><th>Réf.</th><th>Désignation</th><th>Unité</th><th>Prix HT</th><th></th></tr></thead><tbody id="ge-rows">${rows}</tbody></table></div>
+    <div class="row"><button class="btn sm" id="ge-add" type="button">+ Ligne</button></div>
+    <label class="field"><span>Coller depuis Excel (colonnes : Réf. ⇥ Désignation ⇥ Unité ⇥ Prix HT, une prestation par ligne)</span><textarea id="ge-paste" rows="3" placeholder="CAM-POSE&#9;Pose d'une caméra IP&#9;U&#9;145"></textarea></label>
+    <div class="row"><button class="btn sm" id="ge-import" type="button">Ajouter les lignes collées</button></div>
+    ${replaceOf ? `<label class="row" style="font-size:13px;gap:6px"><input type="checkbox" id="ge-swap" checked> Remplacer « ${esc(gridById(replaceOf).name)} » par cette copie chez les DO rattachés</label>` : ""}
+    <div class="row"><button class="btn primary" id="ge-save" type="button">Enregistrer le BPU</button><button class="btn ghost" id="ge-cancel" type="button">Annuler</button></div>
+  </div>`;
+  const sync = () => { const out = []; box.querySelectorAll("#ge-rows tr").forEach((tr) => { const v = (f) => tr.querySelector(`[data-f="${f}"]`).value; out.push({ cat: v("cat").trim(), ref: v("ref").trim(), des: v("des").trim(), det: (editing.g.items[+tr.dataset.k] || {}).det || "", unit: v("unit").trim(), price: parseNum(v("price")) }); }); editing.g.items = out; editing.g.name = $("ge-name").value.trim(); };
+  $("ge-add").onclick = () => { sync(); editing.g.items.push({ cat: (editing.g.items.at(-1) || {}).cat || "", ref: "", des: "", det: "", unit: "U", price: null }); startGridEditor(editing.g, editing.replaceOf); };
+  $("ge-rows").onclick = (e) => { const b = e.target.closest("[data-del]"); if (!b) return; sync(); editing.g.items.splice(+b.dataset.del, 1); startGridEditor(editing.g, editing.replaceOf); };
+  $("ge-import").onclick = () => { sync(); const lines = $("ge-paste").value.split(/\r?\n/).map((l) => l.split("\t")).filter((c) => c.join("").trim()); lines.forEach((c) => editing.g.items.push({ cat: "", ref: (c[0] || "").trim(), des: (c[1] || "").trim(), det: "", unit: (c[2] || "").trim(), price: parseNum(c[3]) })); editing.g.items = editing.g.items.filter((i) => i.ref || i.des); startGridEditor(editing.g, editing.replaceOf); toast(lines.length + " ligne(s) ajoutée(s)"); };
+  $("ge-cancel").onclick = () => { editing = null; box.hidden = true; box.innerHTML = ""; };
+  $("ge-save").onclick = async () => {
+    sync(); const gg = editing.g; gg.items = gg.items.filter((i) => i.ref || i.des);
+    if (!gg.name) { toast("Donnez un nom au BPU"); $("ge-name").focus(); return; }
+    if (!gg.items.length) { toast("Ajoutez au moins une prestation"); return; }
+    if (!(await Store.saveGrid(JSON.parse(JSON.stringify(gg))))) return;
+    S.custom[gg.id] = gg;
+    const swap = $("ge-swap") && $("ge-swap").checked && editing.replaceOf;
+    if (swap) { const m = JSON.parse(JSON.stringify(mapping())); Object.keys(m).forEach((c) => { m[c] = m[c].map((x) => (x === editing.replaceOf ? gg.id : x)); }); await setMapping(m); }
+    editing = null; box.hidden = true; box.innerHTML = ""; renderBpu(); renderCatalog(); toast("BPU enregistré");
+  };
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ---------------- company view ---------------- */
+const CF = { name: "c-name", addr1: "c-addr1", addr2: "c-addr2", foot1: "c-foot1", foot2: "c-foot2", condAcc: "c-condAcc", cond30: "c-cond30", mode: "c-mode", tva: "c-tva", prefix: "c-prefix" };
+let pendingLogo = null;
+function renderCompany() {
+  Object.entries(CF).forEach(([k, id]) => { if (document.activeElement !== $(id)) $(id).value = S.company[k] ?? ""; });
+  $("c-logoPreview").src = pendingLogo !== null ? (pendingLogo || DEFAULT_LOGO) : (S.company.logo || DEFAULT_LOGO);
+  $("brandLogo").src = S.company.logo || DEFAULT_LOGO;
+}
+function bindCompany() {
+  $("c-logoFile").addEventListener("change", (e) => {
+    const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+    rd.onload = () => { const img = new Image(); img.onload = () => { const k = Math.min(1, 400 / Math.max(img.width, img.height)); const cv = document.createElement("canvas"); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); const cx = cv.getContext("2d"); cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height); pendingLogo = cv.toDataURL("image/png"); renderCompany(); toast("Logo chargé : cliquez sur Enregistrer"); }; img.src = rd.result; };
+    rd.readAsDataURL(f);
+  });
+  $("c-logoReset").addEventListener("click", () => { pendingLogo = ""; renderCompany(); toast("Logo d'origine : cliquez sur Enregistrer"); });
+  $("btnExport").addEventListener("click", exportAll);
+  $("importFile").addEventListener("change", async (e) => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; if (S.readOnly) { toast("Import impossible en lecture seule"); return; } await importAll(f); });
+  $("btnSaveCompany").addEventListener("click", async () => {
+    const c = { ...S.company }; Object.entries(CF).forEach(([k, id]) => { c[k] = $(id).value; }); c.tva = parseNum(c.tva) ?? 20;
+    if (pendingLogo !== null) c.logo = pendingLogo;
+    if (await Store.saveConfig("company", c)) { S.company = c; pendingLogo = null; renderCompany(); toast("Informations société enregistrées"); }
+  });
+}
+
+/* ---------------- views ---------------- */
+function showView(v) {
+  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.view === v));
+  ["devis", "liste", "histo", "bpu", "societe"].forEach((x) => { $("view-" + x).hidden = x !== v; });
+  if (v === "liste") renderList(); if (v === "bpu") renderBpu(); if (v === "societe") renderCompany(); if (v === "histo") renderJournal();
+  try { history.replaceState(null, "", "#" + v); } catch (e) {}
+}
+
+/* ---------------- boot ---------------- */
+async function boot() {
+  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
+  bindForm(); bindLines(); bindCatalog(); bindList(); bindBpu(); bindCompany();
+  $("btnNew").addEventListener("click", newDevis); $("btnNew2").addEventListener("click", newDevis);
+  $("btnDup").addEventListener("click", () => duplicateDevis(S.cur));
+  $("btnSave").addEventListener("click", () => saveCurrent(false));
+  $("btnPdfDo").addEventListener("click", () => makePdf("do"));
+  $("btnPdfClient").addEventListener("click", () => makePdf("client"));
+  window.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); if (!$("view-devis").hidden) saveCurrent(false); } });
+  bindHistory();
+  $("catalogFile").addEventListener("change", async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) await importCatalogFile(f); });
+
+  if (CRM_CFG) {
+    // GitHub Pages version: nothing is loaded before the access code is accepted.
+    if (Store === ArtifactStore) { showGate("Le module de connexion ne s'est pas chargé. Vérifiez la connexion internet puis rechargez la page."); $("gateBtn").disabled = true; return; }
+    bindGate();
+    if (!(await Store.hasSession())) { showGate(); return; }
+    if (!Store.author) { showGate(); return; }
+  }
+  await startData();
+}
+
+function showGate(msg) {
+  $("gateLogo").src = DEFAULT_LOGO;
+  $("gate").hidden = false; $("g-name").value = (Store.author || lsGet("crm:author", "")) || "";
+  const err = $("gateErr"); err.hidden = !msg; err.textContent = msg || "";
+  ($("g-name").value ? $("g-code") : $("g-name")).focus();
+}
+let dataStarted = false;
+function bindGate() {
+  $("gateForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("g-name").value.trim(); const code = $("g-code").value;
+    if (!name || !code) return;
+    $("gateBtn").disabled = true; $("gateBtn").textContent = "Vérification…";
+    const err = (await Store.hasSession()) ? null : await Store.signIn(code);
+    $("gateBtn").disabled = false; $("gateBtn").textContent = "Entrer"; $("g-code").value = "";
+    if (err) {
+      const m = /invalid/i.test(err.message || "") ? "Code d'accès incorrect." : /rate|many/i.test(err.message || "") ? "Trop de tentatives. Patientez quelques minutes." : "Connexion impossible : " + (err.message || "erreur réseau");
+      $("gateErr").hidden = false; $("gateErr").textContent = m; $("g-code").focus(); return;
+    }
+    Store.setAuthor(name); $("gate").hidden = true; updateWho();
+    if (!dataStarted) await startData();
+  });
+  $("btnLogout").addEventListener("click", async () => { await Store.signOut(); location.hash = ""; location.reload(); });
+  $("btnRename").addEventListener("click", () => {
+    openModal("Nom affiché dans l'historique", `<form id="renameForm" class="stack" style="padding:16px"><label class="field"><span>Votre prénom</span><input type="text" id="r-name" value="${esc(Store.author)}" required></label><div class="row"><button class="btn primary" type="submit">Enregistrer</button></div></form>`);
+    $("r-name").focus();
+    $("renameForm").addEventListener("submit", (e) => { e.preventDefault(); const n = $("r-name").value.trim(); if (n) { Store.setAuthor(n); updateWho(); closeModal(); toast("Nom mis à jour"); } });
+  });
+}
+function updateWho() { if (Store.mode !== "supabase") return; $("who").hidden = false; $("btnRename").textContent = Store.author || "?"; }
+
+async function startData() {
+  dataStarted = true;
+  try { S.catalog = await Store.loadCatalog(); }
+  catch (e) { const b = $("banner"); b.hidden = false; b.className = "banner note"; b.textContent = "Le catalogue des BPU n'a pas pu être chargé. Rechargez la page."; S.catalog = { grids: [], mapping: {}, dos: [] }; }
+  S.cur = blankDevis(); loadIntoForm(); afterCatalog();
+  if (Store.features.history) { $("tabHisto").hidden = false; $("listStatus").insertAdjacentHTML("beforeend", `<option value="__trash">Corbeille</option>`); }
+  updateWho();
+  const hash = (location.hash || "").slice(1); if (["liste", "bpu", "societe", "histo"].includes(hash)) showView(hash);
+
+  const { mode, canWrite } = await Store.init();
+  const ss = $("storeState");
+  ss.innerHTML = mode === "db" || mode === "supabase" ? `<span class="dot ok"></span><span>Devis partagés avec l'équipe</span>` : `<span class="dot local"></span><span>Enregistré dans ce navigateur · <a href="#societe" id="toBackup" style="color:inherit">sauvegarde</a></span>`;
+  if (mode === "local") {
+    $("toBackup").addEventListener("click", (e) => { e.preventDefault(); showView("societe"); $("btnExport").focus(); });
+    $("backupHint").textContent = "Ici, les devis sont enregistrés uniquement dans ce navigateur, sur cet ordinateur. Exportez régulièrement une sauvegarde (.json) et importez-la sur un autre poste pour retrouver vos devis.";
+  }
+  if (!canWrite) setReadOnly("Vous pouvez consulter ces devis mais pas les modifier (accès en lecture seule).");
+  try { const c = window.claude; if (c) downloads = await c.use("downloads"); } catch (e) { downloads = null; }
+  $("pdfHint").textContent = downloads || !window.claude ? "" : "Le téléchargement de fichiers n'est pas disponible dans cette vue.";
+
+  let firstDevis = true;
+  Store.onConfig((cfg) => {
+    if (cfg.company) S.company = { ...DEFAULT_COMPANY, ...cfg.company };
+    if (cfg.mapping && cfg.mapping.map) S.mapping = cfg.mapping.map;
+    if (cfg.doaddr && cfg.doaddr.map) S.doAddr = cfg.doaddr.map;
+    renderCompany(); if (!$("view-bpu").hidden) renderBpu(); renderCatalog();
+  });
+  Store.onGrids((list) => { S.custom = {}; list.forEach((g) => { if (g && g.id && Array.isArray(g.items)) S.custom[g.id] = g; }); renderCatalog(); if (!$("view-bpu").hidden) renderBpu(); });
+  Store.onDevis((list) => {
+    S.devis = list.filter((d) => d && d.id);
+    if (firstDevis) {
+      firstDevis = false;
+      if (!S.cur.id && !S.dirty && S.devis.length) {
+        const last = lsGet("bbcrm:last", null); const pick = S.devis.find((d) => d.id === last) || S.devis.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+        S.cur = normalizeDevis(JSON.parse(JSON.stringify(pick))); loadIntoForm();
+      }
+    } else if (S.cur.id && !S.dirty) {
+      const fresh = S.devis.find((d) => d.id === S.cur.id); if (fresh && fresh.updatedAt !== S.cur.updatedAt) { S.cur = normalizeDevis(JSON.parse(JSON.stringify(fresh))); loadIntoForm(); }
+    }
+    if (!$("view-liste").hidden) renderList();
+  });
+  S.storeReady = true; renderHead();
+}
+window.addEventListener("beforeunload", (e) => { if (S.dirty && S.cur && S.cur.lines.length) { e.preventDefault(); e.returnValue = ""; } });
+boot();
+</script>
