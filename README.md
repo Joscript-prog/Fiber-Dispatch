@@ -47,6 +47,7 @@ Onglet **Fil de l'eau**, reprise du fichier Excel « FIL DE L'EAU AUDIT-DEVIS »
 - **Activité** : tableau de bord calculé en direct (devis par statut, taux de transformation, panier moyen, production par statut, CA et marge, chiffres par CDP, relances à faire, 12 derniers mois).
 - **Devis** : tous les devis avec CDP, activité, n° de ticket, date d'envoi, relances, jours sans relance et « À relancer » calculés comme dans l'Excel.
 - **Production** : une ligne est créée automatiquement quand un devis passe à « Accepté » (statut « A PLANIFIER »). Date d'intervention, technicien, prix d'achat ; la marge et le % de marge sont calculés.
+- **Facturation** (dans Production) : filtres par DO, mois et « À facturer », puis *Extraction facturation* télécharge un Excel des lignes affichées (récapitulatif, détail des prestations des devis, synthèse par DO ; sans prix d'achat ni marge). Le n° de facture se note ligne par ligne ou en une fois sur les lignes affichées.
 - **Listes** : répartition DO → CDP, délai de relance, listes des CDP, activités et techniciens.
 
 Le PDF « DO » d'un brouillon le passe automatiquement en « Envoyé – en attente » avec la date du jour.

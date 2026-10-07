@@ -252,6 +252,11 @@ tr.late td { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); 
 .pst-A_PLANIFIER { background: var(--accent-soft); color: var(--accent); }
 .pst-KO { background: var(--bad-soft); color: var(--bad); }
 @media (max-width: 900px) { .sv-grid, .kpis { grid-template-columns: minmax(0, 1fr); } }
+.fact-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.fact-sum { font-size: 13px; } .fact-sum b { font-variant-numeric: tabular-nums; } .fact-sum .warn { color: var(--warn); font-weight: 600; }
+.fact-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fact-mark { display: inline-flex; gap: 6px; align-items: center; } .fact-mark input { width: 150px; }
+td .fact-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .who { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .linkish { border: 0; background: none; padding: 0; font-weight: 600; color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
@@ -480,6 +485,7 @@ tr.late td { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); 
         <input type="search" id="svdSearch" placeholder="Chercher un DO, un client, un n° de devis ou de ticket…" style="max-width:300px">
         <select id="svdStatut" style="width:auto"><option value="">Tous les statuts</option><option value="envoye">En attente</option><option value="accepte">Accepté</option><option value="refuse">Refusé</option><option value="erreur">Erreur</option></select>
         <select id="svdCdp" style="width:auto"></select>
+        <select id="svdDo" style="width:auto;max-width:220px" aria-label="Donneur d'ordre"></select>
         <label class="row chk"><input type="checkbox" id="svdRelance"> À relancer</label>
         <label class="row chk"><input type="checkbox" id="svdVieux"> En attente depuis + de 30 j</label>
         <label class="row chk"><input type="checkbox" id="svdJamais"> Jamais relancés</label>
@@ -493,12 +499,27 @@ tr.late td { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); 
         <input type="search" id="svpSearch" placeholder="Chercher un site, un DO, un ticket, un technicien…" style="max-width:300px">
         <select id="svpStatut" style="width:auto"></select>
         <select id="svpCdp" style="width:auto"></select>
+        <select id="svpDo" style="width:auto;max-width:220px" aria-label="Donneur d'ordre"></select>
+        <select id="svpMois" style="width:auto" aria-label="Mois d'intervention"></select>
+        <select id="svpFact" style="width:auto" aria-label="Facturation">
+          <option value="">Facturation : toutes</option>
+          <option value="afacturer">À facturer (réalisées, sans n° de facture)</option>
+          <option value="facture">Déjà facturées</option>
+        </select>
         <label class="row chk"><input type="checkbox" id="svpSansTech"> Planifiées sans technicien</label>
         <label class="row chk"><input type="checkbox" id="svpNeg"> Marge négative</label>
         <button class="btn primary" id="svpAdd" type="button" style="margin-left:auto">Nouvelle intervention</button>
       </div>
+      <div class="fact-bar" id="svpFactBar">
+        <div class="fact-sum" id="svpFactSum"></div>
+        <div class="fact-actions">
+          <button class="btn primary" id="svpExport" type="button">Extraction facturation (Excel)</button>
+          <span class="fact-mark"><input type="text" id="svpFactNum" placeholder="N° de facture" aria-label="N° de facture à noter sur les lignes affichées"><button class="btn" id="svpMarkFact" type="button">Marquer facturées</button></span>
+        </div>
+      </div>
       <div class="table-wrap" id="svpWrap"></div>
-      <p class="muted sv-help">Un devis accepté crée automatiquement sa ligne « À planifier » avec son prix de vente. Saisissez la date, le technicien et le prix d'achat : la marge se calcule seule.</p>
+      <p class="muted sv-help">Un devis accepté crée automatiquement sa ligne « À planifier » avec son prix de vente. Saisissez la date, le technicien et le prix d'achat : la marge se calcule seule.<br>
+        Facturation : filtrez par DO et par mois (et « À facturer »), puis « Extraction facturation » télécharge les lignes affichées en Excel (récapitulatif + détail des prestations des devis, sans prix d'achat ni marge). Notez ensuite le n° de facture : les lignes passent dans « Déjà facturées ».</p>
     </div>
 
     <div id="sv-listes" hidden>
@@ -890,6 +911,14 @@ function makeSupaStore(cfg) {
         if (i >= 0) cache.production[i] = row; else cache.production.unshift(row);
         (subs.production || []).forEach((f) => f(cache.production)); return true;
       } catch (e) { return fail(e, "Enregistrement de l'intervention"); }
+    },
+    async saveProductions(list) { // plusieurs lignes en une requête (facturation)
+      try {
+        await q(sb.from("production").upsert(list.map((p) => ({ id: p.id, devis_id: p.devisId || null, statut: p.statut || "A PLANIFIER", date_intervention: p.dateIntervention || null,
+          data: p, updated_at: now(), updated_by: author || null }))));
+        list.forEach((p) => { const i = cache.production.findIndex((x) => x.id === p.id); const row = { ...p, updatedBy: author }; if (i >= 0) cache.production[i] = row; else cache.production.unshift(row); });
+        (subs.production || []).forEach((f) => f(cache.production)); return true;
+      } catch (e) { return fail(e, "Enregistrement de la facturation"); }
     },
     async deleteProduction(id) {
       try { await q(sb.from("production").update({ deleted_at: now(), updated_by: author || null }).eq("id", id)); cache.production = cache.production.filter((x) => x.id !== id); (subs.production || []).forEach((f) => f(cache.production)); return true; }
@@ -1614,6 +1643,10 @@ function prochainJourRelance() { // TODAY()+CHOOSE(WEEKDAY(TODAY(),2),1,0,1,0,4,
   const t = new Date(); const wd = ((t.getDay() + 6) % 7) + 1; return addDays(todayISO(), [1, 0, 1, 0, 4, 3, 2][wd - 1]);
 }
 const sumBy = (arr, f) => round2(arr.reduce((s, x) => s + (Number(f(x)) || 0), 0));
+const doOf = (x) => String(x.doName || "").trim();
+const estFacture = (p) => !!String(p.factureNum || "").trim();
+const aFacturer = (p) => p.statut === "REALISE" && !estFacture(p);
+const moisLabel = (m) => { const t = new Date(m + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 /* ---- ACTIVITÉ ---- */
 function renderActivite() {
@@ -1640,6 +1673,7 @@ function renderActivite() {
     ["jamais", "Devis jamais relancés", D.filter(jamaisRelance).length],
     ["sansTech", "Interventions planifiées sans technicien", P.filter((p) => p.statut === "PLANIFIE" && !(p.technicien || "").trim()).length],
     ["neg", "Interventions planifiées à marge négative", P.filter((p) => p.statut === "PLANIFIE" && (marge(p) ?? 0) < 0).length],
+    ["afacturer", `Interventions réalisées à facturer (${money(sumBy(P.filter(aFacturer), (p) => p.prixVente))} HT)`, P.filter(aFacturer).length],
     ["arbitrer", "Devis avec CDP « À arbitrer » (DO hors répartition)", D.filter((d) => cdpOf(d) === ARBITRER).length]
   ];
   const first = new Date(); first.setDate(1); const months = [];
@@ -1684,8 +1718,8 @@ function renderActivite() {
 
 /* ---- DEVIS ---- */
 function renderSvDevis() {
-  const q = norm($("svdSearch").value), st = $("svdStatut").value, cdp = $("svdCdp").value;
-  const rows = svDevis().filter((d) => (!st || d.status === st) && (!cdp || (d.cdp || ARBITRER) === cdp)
+  const q = norm($("svdSearch").value), st = $("svdStatut").value, cdp = $("svdCdp").value, dof = $("svdDo").value;
+  const rows = svDevis().filter((d) => (!st || d.status === st) && (!cdp || (d.cdp || ARBITRER) === cdp) && (!dof || doOf(d) === dof)
     && (!svF.relance || aRelancer(d)) && (!svF.vieux || vieux(d)) && (!svF.jamais || jamaisRelance(d))
     && (!q || norm([d.num, d.ticket, d.doName, d.client && d.client.name, d.client && d.client.cpVille, d.reference, d.commentaire].join(" ")).includes(q)))
     .sort((a, b) => (b.dateEnvoi || "").localeCompare(a.dateEnvoi || "") || (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -1720,16 +1754,35 @@ async function svSaveDevis(id, patch) {
 }
 
 /* ---- PRODUCTION ---- */
-function renderSvProd() {
-  const q = norm($("svpSearch").value), st = $("svpStatut").value, cdp = $("svpCdp").value, cfg = SUIVI();
-  const P = (S.production || []).filter((p) => (!st || (st === "KO" ? PROD_KO.includes(p.statut) : p.statut === st)) && (!cdp || (p.cdp || ARBITRER) === cdp)
+function svProdRows() {
+  const q = norm($("svpSearch").value), st = $("svpStatut").value, cdp = $("svpCdp").value, dof = $("svpDo").value, mois = $("svpMois").value, fact = $("svpFact").value;
+  return (S.production || []).filter((p) => (!st || (st === "KO" ? PROD_KO.includes(p.statut) : p.statut === st)) && (!cdp || (p.cdp || ARBITRER) === cdp)
+    && (!dof || doOf(p) === dof)
+    && (!mois || (mois === "none" ? !p.dateIntervention : (p.dateIntervention || "").startsWith(mois)))
+    && (!fact || (fact === "afacturer" ? aFacturer(p) : estFacture(p)))
     && (!svF.sansTech || (p.statut === "PLANIFIE" && !(p.technicien || "").trim())) && (!svF.neg || (marge(p) ?? 0) < 0)
-    && (!q || norm([p.site, p.doName, p.ticket, p.num, p.technicien, p.commentaire].join(" ")).includes(q)))
+    && (!q || norm([p.site, p.doName, p.ticket, p.num, p.technicien, p.commentaire, p.factureNum].join(" ")).includes(q)))
     .sort((a, b) => (!a.dateIntervention) - (!b.dateIntervention) || (b.dateIntervention || "").localeCompare(a.dateIntervention || ""));
+}
+let armedFact = false;
+function renderFactBar(P) {
+  const nonReal = P.filter((p) => p.statut !== "REALISE").length, deja = P.filter(estFacture).length, aMarquer = P.filter((p) => !estFacture(p)).length;
+  const dof = $("svpDo").value, mois = $("svpMois").value;
+  $("svpFactSum").innerHTML = `<b>${P.length}</b> intervention${P.length > 1 ? "s" : ""} affichée${P.length > 1 ? "s" : ""}${dof ? ` · ${esc(dof)}` : ""}${mois && mois !== "none" ? ` · ${esc(moisLabel(mois))}` : ""} · <b>${money(sumBy(P, (p) => p.prixVente))}</b> HT`
+    + (nonReal ? ` · <span class="warn">dont ${nonReal} non réalisée${nonReal > 1 ? "s" : ""}</span>` : "") + (deja ? ` · ${deja} déjà facturée${deja > 1 ? "s" : ""}` : "");
+  $("svpExport").disabled = !P.length;
+  $("svpMarkFact").disabled = !aMarquer || S.readOnly; $("svpFactNum").disabled = S.readOnly;
+  $("svpMarkFact").textContent = armedFact ? `Confirmer (${aMarquer} ligne${aMarquer > 1 ? "s" : ""})` : "Marquer facturées";
+  $("svpMarkFact").classList.toggle("danger", armedFact); $("svpMarkFact").classList.toggle("armed", armedFact);
+}
+function renderSvProd() {
+  const cfg = SUIVI();
+  const P = svProdRows();
+  renderFactBar(P);
   if (!(S.production || []).length) { $("svpWrap").innerHTML = `<div class="empty-state"><b>Aucune intervention pour l'instant</b>Les devis acceptés arrivent ici automatiquement. Ajoutez une intervention sans devis avec « Nouvelle intervention ».</div>`; return; }
   if (!P.length) { $("svpWrap").innerHTML = `<div class="empty-state"><b>Aucune intervention ne correspond</b>Modifiez la recherche ou les filtres.</div>`; return; }
   const opt = (vals, cur, empty) => (empty !== undefined ? `<option value="">${esc(empty)}</option>` : "") + Array.from(new Set([...vals, ...(cur && !vals.includes(cur) ? [cur] : [])])).map((v) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
-  $("svpWrap").innerHTML = `<table class="data edit" style="min-width:1500px"><thead><tr><th>CDP</th><th>Donneur d'ordre</th><th>Site</th><th>Activité</th><th>N° ticket</th><th>Date intervention</th><th class="r">Prix vente € HT</th><th class="r">Prix achat € HT</th><th class="r">Marge € HT</th><th>Technicien</th><th>Statut</th><th>Commentaire</th><th class="r">Marge %</th><th></th></tr></thead><tbody>` +
+  $("svpWrap").innerHTML = `<table class="data edit" style="min-width:1620px"><thead><tr><th>CDP</th><th>Donneur d'ordre</th><th>Site</th><th>Activité</th><th>N° ticket</th><th>Date intervention</th><th class="r">Prix vente € HT</th><th class="r">Prix achat € HT</th><th class="r">Marge € HT</th><th>Technicien</th><th>Statut</th><th>N° facture</th><th>Commentaire</th><th class="r">Marge %</th><th></th></tr></thead><tbody>` +
     P.map((p) => { const m = marge(p), mp = margePct(p); return `<tr data-pid="${esc(p.id)}">
       <td><select class="w-m" data-pf="cdp">${opt(cfg.cdps, p.cdp || ARBITRER)}</select></td>
       <td><input class="w-m" data-pf="doName" list="doList" value="${esc(p.doName || "")}"></td>
@@ -1742,6 +1795,7 @@ function renderSvProd() {
       <td class="r money ${m !== null && m < 0 ? "neg" : ""}">${m === null ? "" : money(m)}</td>
       <td><input class="w-m" data-pf="technicien" list="techList" value="${esc(p.technicien || "")}"></td>
       <td><select class="w-m" data-pf="statut">${PROD_STATUTS.map((s) => `<option value="${s}" ${s === p.statut ? "selected" : ""}>${PROD_LABEL[s]}</option>`).join("")}</select></td>
+      <td><input class="w-s" data-pf="factureNum" value="${esc(p.factureNum || "")}" placeholder="${aFacturer(p) ? "à facturer" : "—"}">${p.factureDate && estFacture(p) ? `<div class="fact-date">le ${frDate(p.factureDate)}</div>` : ""}</td>
       <td><input class="w-l" data-pf="commentaire" value="${esc(p.commentaire || "")}" placeholder="—"></td>
       <td class="r">${mp === null ? "" : `<span class="${mp < 0 ? "neg" : ""}">${pct(mp)}</span>`}</td>
       <td><button class="icon-btn ${armedProd === p.id ? "neg" : ""}" data-pdel="1" title="${armedProd === p.id ? "Cliquer encore pour supprimer" : "Supprimer l'intervention"}" aria-label="Supprimer l'intervention">${armedProd === p.id ? "Confirmer" : "✕"}</button></td></tr>`; }).join("") + `</tbody></table>`;
@@ -1775,7 +1829,13 @@ function renderSuivi() {
   document.querySelectorAll("[data-sv]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sv === svView)));
   const cfg = SUIVI();
   $("techList").innerHTML = cfg.techniciens.map((t) => `<option value="${esc(t)}"></option>`).join("");
-  const keepSel = (sel, html) => { const v = sel.value; sel.innerHTML = html; sel.value = v; };
+  const keepSel = (sel, html) => { const v = sel.value; sel.innerHTML = html; sel.value = v; if (sel.selectedIndex < 0) sel.selectedIndex = 0; };
+  const uniq = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, "fr"));
+  keepSel($("svdDo"), `<option value="">Tous les DO</option>` + uniq(svDevis().map(doOf)).map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join(""));
+  keepSel($("svpDo"), `<option value="">Tous les DO</option>` + uniq((S.production || []).map(doOf)).map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join(""));
+  const mois = uniq((S.production || []).map((p) => (p.dateIntervention || "").slice(0, 7))).reverse();
+  keepSel($("svpMois"), `<option value="">Tous les mois</option>` + mois.map((m) => `<option value="${m}">${esc(moisLabel(m))}</option>`).join("")
+    + ((S.production || []).some((p) => !p.dateIntervention) ? `<option value="none">Sans date d'intervention</option>` : ""));
   keepSel($("svdCdp"), `<option value="">Tous les CDP</option>` + cfg.cdps.map((c) => `<option>${esc(c)}</option>`).join(""));
   keepSel($("svpCdp"), `<option value="">Tous les CDP</option>` + cfg.cdps.map((c) => `<option>${esc(c)}</option>`).join(""));
   keepSel($("svpStatut"), `<option value="">Tous les statuts</option>` + PROD_STATUTS.map((s) => `<option value="${s}">${PROD_LABEL[s]}</option>`).join("") + `<option value="KO">Annulé / KO (tous)</option>`);
@@ -1788,10 +1848,12 @@ function renderSuivi() {
 function svGo(view, filters) {
   svView = view; Object.keys(svF).forEach((k) => (svF[k] = false));
   $("svdSearch").value = ""; $("svpSearch").value = ""; $("svdStatut").value = ""; $("svdCdp").value = ""; $("svpStatut").value = ""; $("svpCdp").value = "";
+  ["svdDo", "svpDo", "svpMois", "svpFact"].forEach((id) => { $(id).value = ""; }); armedFact = false;
   Object.assign(svF, filters.flags || {});
   renderSuivi();
   if (filters.st !== undefined) { (view === "devis" ? $("svdStatut") : $("svpStatut")).value = filters.st; }
   if (filters.cdp !== undefined) { (view === "devis" ? $("svdCdp") : $("svpCdp")).value = filters.cdp; }
+  if (filters.fact) $("svpFact").value = filters.fact;
   renderSuivi();
 }
 function bindSuivi() {
@@ -1802,6 +1864,7 @@ function bindSuivi() {
       const k = tr.dataset.prio;
       if (k === "vieux" || k === "jamais") svGo("devis", { st: "envoye", flags: { [k]: true } });
       else if (k === "arbitrer") svGo("devis", { cdp: ARBITRER });
+      else if (k === "afacturer") svGo("production", { fact: "afacturer" });
       else svGo("production", { st: "PLANIFIE", flags: { [k]: true } });
       return;
     }
@@ -1811,8 +1874,11 @@ function bindSuivi() {
     if (e.target.id !== "svDelai") return; const n = Math.max(1, Math.round(parseNum(e.target.value) || 7));
     saveSuivi({ ...SUIVI(), delaiRelance: n }, `Relance au bout de ${n} jours`);
   });
-  ["svdSearch", "svpSearch"].forEach((id) => $(id).addEventListener("input", () => renderSuivi()));
-  ["svdStatut", "svdCdp", "svpStatut", "svpCdp"].forEach((id) => $(id).addEventListener("change", () => renderSuivi()));
+  ["svdSearch", "svpSearch"].forEach((id) => $(id).addEventListener("input", () => { armedFact = false; renderSuivi(); }));
+  ["svdStatut", "svdCdp", "svdDo", "svpStatut", "svpCdp", "svpDo", "svpMois", "svpFact"].forEach((id) => $(id).addEventListener("change", () => { armedFact = false; renderSuivi(); }));
+  $("svpExport").addEventListener("click", svExportFacturation);
+  $("svpMarkFact").addEventListener("click", svMarkFacturees);
+  $("svpFactNum").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); svMarkFacturees(); } });
   [["svdRelance", "relance"], ["svdVieux", "vieux"], ["svdJamais", "jamais"], ["svpSansTech", "sansTech"], ["svpNeg", "neg"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { svF[k] = e.target.checked; renderSuivi(); }));
   // Devis : édition en ligne
   $("svdWrap").addEventListener("change", (e) => {
@@ -1828,6 +1894,7 @@ function bindSuivi() {
   $("svpWrap").addEventListener("change", (e) => {
     const el = e.target.closest("[data-pf]"); if (!el) return; const id = el.closest("tr").dataset.pid; const f = el.dataset.pf;
     let v = el.value; if (f === "prixVente" || f === "prixAchat") v = parseNum(v);
+    if (f === "factureNum") { const p = (S.production || []).find((x) => x.id === id) || {}; v = v.trim(); svSaveProd(id, { factureNum: v, factureDate: v ? (p.factureDate || todayISO()) : "" }); return; }
     svSaveProd(id, { [f]: v });
   });
   $("svpWrap").addEventListener("click", async (e) => {
@@ -1854,6 +1921,78 @@ function bindSuivi() {
     const cdps = lines("svlCdps"); if (!cdps.includes(ARBITRER)) cdps.push(ARBITRER);
     saveSuivi({ ...SUIVI(), delaiRelance: Math.max(1, Math.round(parseNum($("svlDelai").value) || 7)), cdps, activites: lines("svlActs"), techniciens: lines("svlTechs"), repartition: { ...svRepDraft } }, "Listes enregistrées");
   });
+}
+
+/* ---- FACTURATION (onglet Production) ---- */
+let xlsxP = null;
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxP) xlsxP = new Promise((res, rej) => {
+    const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    sc.onload = () => (window.XLSX ? res(window.XLSX) : rej(new Error("xlsx"))); sc.onerror = () => { xlsxP = null; sc.remove(); rej(new Error("xlsx")); };
+    document.head.appendChild(sc);
+  });
+  return xlsxP;
+}
+const xlDate = (iso) => { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return { t: "n", v: (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000, z: "dd/mm/yyyy" }; };
+const xlMoney = (n) => (n === null || n === undefined || n === "" || !isFinite(Number(n)) ? "" : { t: "n", v: round2(Number(n)), z: '#,##0.00 "€"' });
+const xlQty = (n) => ({ t: "n", v: Number(n) || 0 });
+function xlSheet(X, header, rows, total, widths) {
+  const ws = X.utils.aoa_to_sheet([header, ...rows, ...(total ? [total] : [])]);
+  ws["!cols"] = widths.map((w) => ({ wch: w }));
+  if (rows.length) ws["!autofilter"] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: header.length - 1 } }) };
+  return ws;
+}
+async function svExportFacturation() {
+  const P = svProdRows(); if (!P.length) { toast("Aucune intervention à extraire : modifiez les filtres"); return; }
+  const btn = $("svpExport"); btn.disabled = true; const label = btn.textContent; btn.textContent = "Préparation…";
+  let X;
+  try { X = await loadXlsx(); } catch (e) { toast("Impossible de charger le module Excel : vérifiez la connexion internet"); btn.textContent = label; btn.disabled = false; return; }
+  try {
+    const rows = [...P].sort((a, b) => doOf(a).localeCompare(doOf(b), "fr") || (a.dateIntervention || "").localeCompare(b.dateIntervention || ""));
+    const total = sumBy(rows, (p) => p.prixVente);
+    const recap = rows.map((p) => [doOf(p), p.num || "", p.ticket || "", p.site || "", p.activite || "", xlDate(p.dateIntervention), PROD_LABEL[p.statut] || p.statut || "", xlMoney(p.prixVente), p.factureNum || "", estFacture(p) ? xlDate(p.factureDate) : "", p.cdp || ""]);
+    const detail = [];
+    rows.forEach((p) => {
+      const d = p.devisId ? S.devis.find((x) => x.id === p.devisId) : null;
+      const base = [doOf(p), p.num || "", p.ticket || "", p.site || "", xlDate(p.dateIntervention)];
+      const lines = d ? (d.lines || []).filter((l) => l.kind !== "text") : [];
+      if (lines.length) lines.forEach((l) => detail.push([...base, l.ref || "", l.des || "", xlQty(l.qt), xlMoney(l.pu), xlMoney((Number(l.pu) || 0) * (Number(l.qt) || 0)), p.factureNum || ""]));
+      else detail.push([...base, "", "Intervention" + (p.activite ? " " + p.activite : "") + (d ? "" : " (sans devis)"), xlQty(1), xlMoney(p.prixVente), xlMoney(p.prixVente), p.factureNum || ""]);
+    });
+    const detailTotal = round2(detail.reduce((s, r) => s + (r[9] && r[9].v ? r[9].v : 0), 0));
+    const parDo = Array.from(new Set(rows.map(doOf))).map((n) => { const a = rows.filter((p) => doOf(p) === n); return [n || "(sans DO)", a.length, xlMoney(sumBy(a, (p) => p.prixVente)), a.filter(estFacture).length, a.filter((p) => !estFacture(p)).length]; });
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, xlSheet(X, ["Donneur d'ordre", "N° devis", "N° ticket", "Site / client final", "Activité", "Date intervention", "Statut", "Prix vente € HT", "N° facture", "Date facture", "CDP"],
+      recap, ["Total", "", "", "", "", "", `${rows.length} intervention${rows.length > 1 ? "s" : ""}`, xlMoney(total), "", "", ""], [22, 14, 14, 38, 11, 15, 12, 15, 14, 13, 13]), "Récapitulatif");
+    X.utils.book_append_sheet(wb, xlSheet(X, ["Donneur d'ordre", "N° devis", "N° ticket", "Site / client final", "Date intervention", "Référence", "Désignation", "Quantité", "PU € HT", "Total € HT", "N° facture"],
+      detail, ["Total", "", "", "", "", "", "", "", "", xlMoney(detailTotal), ""], [22, 14, 14, 34, 15, 16, 60, 9, 12, 13, 14]), "Détail prestations");
+    X.utils.book_append_sheet(wb, xlSheet(X, ["Donneur d'ordre", "Interventions", "Total € HT", "Déjà facturées", "Non facturées"],
+      parDo, ["Total", rows.length, xlMoney(total), rows.filter(estFacture).length, rows.filter((p) => !estFacture(p)).length], [26, 14, 15, 15, 15]), "Par DO");
+    const out = X.write(wb, { bookType: "xlsx", type: "array", compression: true });
+    const slug = (t) => norm(t).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").toUpperCase() || "X";
+    const dof = $("svpDo").value, mois = $("svpMois").value;
+    const name = `Facturation_${dof ? slug(dof) : "TOUS-DO"}_${mois && mois !== "none" ? mois : "toutes-dates"}.xlsx`;
+    const ok = await saveFile(name, new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    if (ok !== false) {
+      toast(`${name} : ${rows.length} intervention${rows.length > 1 ? "s" : ""}, ${money(total)} HT`);
+      if (rows.some((p) => !estFacture(p)) && !S.readOnly) $("svpFactNum").focus();
+    }
+  } catch (e) { console.error(e); toast("L'extraction a échoué"); }
+  btn.textContent = label; btn.disabled = false;
+}
+async function svMarkFacturees() {
+  if (S.readOnly) return;
+  const num = $("svpFactNum").value.trim();
+  if (!num) { toast("Saisissez d'abord le n° de facture"); $("svpFactNum").focus(); return; }
+  const todo = svProdRows().filter((p) => !estFacture(p)); if (!todo.length) { toast("Toutes les lignes affichées ont déjà un n° de facture"); return; }
+  if (!armedFact) { armedFact = true; renderFactBar(svProdRows()); setTimeout(() => { if (armedFact) { armedFact = false; renderFactBar(svProdRows()); } }, 5000); return; }
+  armedFact = false;
+  const today = todayISO();
+  const list = todo.map((p) => { const np = { ...JSON.parse(JSON.stringify(p)), factureNum: num, factureDate: today }; delete np.updatedBy; return np; });
+  const ok = Store.saveProductions ? await Store.saveProductions(list) : (await Promise.all(list.map((p) => Store.saveProduction(p)))).every(Boolean);
+  if (ok) { toast(`Facture ${num} notée sur ${list.length} intervention${list.length > 1 ? "s" : ""}`); $("svpFactNum").value = ""; }
+  renderSuivi();
 }
 
 
