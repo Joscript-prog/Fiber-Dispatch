@@ -121,6 +121,7 @@ textarea { resize: vertical; }
 .st-envoye { background: var(--warn-soft); color: var(--warn); }
 .st-accepte { background: var(--ok-soft); color: var(--ok); }
 .st-refuse { background: var(--bad-soft); color: var(--bad); }
+.hist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 16px 8px}.hist-head p{margin:0;font-size:13px}
 .st-erreur { background: var(--surface-2); color: var(--bad); border: 1px solid var(--bad-soft); }
 
 /* Lines table */
@@ -528,7 +529,7 @@ tr.late td { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); 
       <input type="search" id="histoSearch" placeholder="Chercher un devis, un client, une personne…" style="max-width:320px">
       <button class="btn" id="btnHistoRefresh" type="button">Actualiser</button>
     </div>
-    <p class="muted" style="margin:0 0 12px;max-width:72ch">Chaque création, modification, changement de statut et suppression est enregistré avec son auteur. Les enregistrements successifs d'une même personne sur 10 minutes sont regroupés en une seule ligne.</p>
+    <p class="muted" style="margin:0 0 12px;max-width:72ch">Chaque création, modification, changement de statut et suppression est enregistré avec son auteur. Les enregistrements successifs d'une même personne sur 10 minutes sont regroupés en une seule ligne. Cliquez sur une ligne pour ouvrir le devis et le modifier ; le bouton <b>Versions</b> montre ses versions précédentes (PDF, restauration).</p>
     <div class="table-wrap" id="histoWrap"></div>
   </section>
 
@@ -1198,8 +1199,9 @@ async function saveCurrent(silent) {
   }
   if (!silent) toast(`Devis ${d.num} enregistré`);
 }
-function openDevis(id) {
+async function openDevis(id) {
   const d = S.devis.find((x) => x.id === id); if (!d) return;
+  if (S.cur && S.cur.id && S.cur.id !== id && S.dirty && !S.readOnly && S.storeReady) { clearTimeout(autosaveT); await saveCurrent(true); }
   S.cur = normalizeDevis(JSON.parse(JSON.stringify(d))); S.dirty = false; lsSet("bbcrm:last", id);
   loadIntoForm(); showView("devis");
 }
@@ -1386,7 +1388,8 @@ async function openHistory(devisId, d) {
 function renderHistoryModal() {
   const rows = histCtx.rows || [];
   const d = histCtx.d || {};
-  $("modalBody").innerHTML = (d.client ? `<p class="muted" style="margin:12px 16px 4px;font-size:13px">${esc(d.doName || "")} → ${esc(d.client.name || "")} ${esc(d.client.cpVille || "")}</p>` : "") +
+  const live = S.devis.some((x) => x.id === histCtx.devisId);
+  $("modalBody").innerHTML = `<div class="hist-head"><p class="muted">${d.client ? `${esc(d.doName || "")} → ${esc(d.client.name || "")} ${esc(d.client.cpVille || "")}` : live ? "" : "Ce devis est dans la corbeille : restaurez une version pour le récupérer."}</p>${live ? `<button class="btn primary sm" data-v="open" type="button">Ouvrir dans l'éditeur</button>` : ""}</div>` +
     (rows.length ? `<div style="overflow-x:auto"><table class="data" style="min-width:620px"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Statut</th><th class="r">Total HT</th><th class="r">Version</th></tr></thead><tbody>` +
     rows.map((r, i) => `<tr data-h="${r.id}"><td class="num">${fmtDT(r.created_at)}</td><td>${esc(r.auteur || "—")}</td><td><span class="act act-${esc(r.action)}">${esc(ACT[r.action] || r.action)}</span></td><td>${r.status ? `<span class="status-chip st-${esc(r.status)}">${esc(STATUS[r.status] || r.status)}</span>` : ""}</td><td class="r money">${r.total_ht !== null && r.total_ht !== undefined ? money(Number(r.total_ht)) : ""}</td>
       <td class="r" style="white-space:nowrap"><button class="btn sm" data-v="pdf">PDF</button> ${i === 0 ? `<span class="muted" style="font-size:12px">actuelle</span>` : `<button class="btn sm ${armedRestore === r.id ? "danger armed" : ""}" data-v="restore" ${S.readOnly ? "disabled" : ""}>${armedRestore === r.id ? "Confirmer" : "Restaurer"}</button>`}</td></tr>`).join("") + `</tbody></table></div>`
@@ -1397,7 +1400,9 @@ function bindHistory() {
   $("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("modal").hidden) closeModal(); });
   $("modalBody").addEventListener("click", async (e) => {
-    const b = e.target.closest("button[data-v]"); if (!b || !histCtx) return; const hid = +b.closest("tr").dataset.h;
+    const b = e.target.closest("button[data-v]"); if (!b || !histCtx) return;
+    if (b.dataset.v === "open") { closeModal(); openDevis(histCtx.devisId); return; }
+    const hid = +b.closest("tr").dataset.h;
     const data = await Store.version(hid); if (!data) return;
     if (b.dataset.v === "pdf") { makePdf("do", { ...data, id: histCtx.devisId }); return; }
     if (b.dataset.v === "restore") {
@@ -1412,15 +1417,19 @@ function bindHistory() {
   });
   $("histoSearch").addEventListener("input", renderJournalRows);
   $("btnHistoRefresh").addEventListener("click", renderJournal);
-  $("histoWrap").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-d]"); if (!tr) return; const id = tr.dataset.d; const d = S.devis.find((x) => x.id === id) || { num: tr.dataset.n }; openHistory(id, d); });
+  $("histoWrap").addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-d]"); if (!tr) return; const id = tr.dataset.d; const d = S.devis.find((x) => x.id === id);
+    if (d && !e.target.closest("button[data-j='versions']")) { openDevis(id); return; }
+    openHistory(id, d || { num: tr.dataset.n });
+  });
 }
 let journalRows = [];
 async function renderJournal() { $("histoWrap").innerHTML = `<div class="empty-state">Chargement…</div>`; journalRows = await Store.journal(); renderJournalRows(); }
 function renderJournalRows() {
   const q = norm($("histoSearch").value);
   const rows = journalRows.filter((r) => !q || norm([r.num, r.auteur, r.name, r.doName, r.action].join(" ")).includes(q));
-  $("histoWrap").innerHTML = rows.length ? `<table class="data"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Devis</th><th>DO</th><th>Client final</th><th>Statut</th><th class="r">Total HT</th></tr></thead><tbody>` +
-    rows.map((r) => `<tr class="click" data-d="${esc(r.devis_id)}" data-n="${esc(r.num || "")}"><td class="num">${fmtDT(r.created_at)}</td><td>${esc(r.auteur || "—")}</td><td><span class="act act-${esc(r.action)}">${esc(ACT[r.action] || r.action)}</span></td><td class="mono">${esc(r.num || "")}</td><td>${esc(r.doName || "")}</td><td>${esc(r.name || "")}</td><td>${r.status ? `<span class="status-chip st-${esc(r.status)}">${esc(STATUS[r.status] || r.status)}</span>` : ""}</td><td class="r money">${r.total_ht !== null && r.total_ht !== undefined ? money(Number(r.total_ht)) : ""}</td></tr>`).join("") + `</tbody></table>`
+  $("histoWrap").innerHTML = rows.length ? `<table class="data"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Devis</th><th>DO</th><th>Client final</th><th>Statut</th><th class="r">Total HT</th><th></th></tr></thead><tbody>` +
+    rows.map((r) => { const live = S.devis.some((x) => x.id === r.devis_id); return `<tr class="click" data-d="${esc(r.devis_id)}" title="${live ? "Ouvrir le devis" : "Devis dans la corbeille : voir ses versions"}" data-n="${esc(r.num || "")}"><td class="num">${fmtDT(r.created_at)}</td><td>${esc(r.auteur || "—")}</td><td><span class="act act-${esc(r.action)}">${esc(ACT[r.action] || r.action)}</span></td><td class="mono">${esc(r.num || "")}</td><td>${esc(r.doName || "")}</td><td>${esc(r.name || "")}</td><td>${r.status ? `<span class="status-chip st-${esc(r.status)}">${esc(STATUS[r.status] || r.status)}</span>` : ""}</td><td class="r money">${r.total_ht !== null && r.total_ht !== undefined ? money(Number(r.total_ht)) : ""}</td><td class="r" style="white-space:nowrap">${live ? "" : `<span class="muted" style="font-size:12px">corbeille</span> `}<button class="btn sm" data-j="versions" type="button">Versions</button></td></tr>`; }).join("") + `</tbody></table>`
     : `<div class="empty-state"><b>${journalRows.length ? "Aucun résultat" : "Aucune activité"}</b>${journalRows.length ? "Modifiez la recherche." : "Les créations et modifications de devis apparaîtront ici."}</div>`;
 }
 
