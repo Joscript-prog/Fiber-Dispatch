@@ -327,8 +327,8 @@ table.data td.r, table.data th.r { text-align: right; }
                 <input type="text" id="f-do" list="doList" placeholder="Tapez le nom du DO pour le chercher" autocomplete="off">
               </label>
               <label class="field"><span>Nom du DO</span><input type="text" id="f-doName"></label>
-              <label class="field"><span>Adresse du DO</span><input type="text" id="f-doAddress"></label>
-              <label class="field"><span>Code postal et ville du DO</span><input type="text" id="f-doCpVille"></label>
+              <label class="field"><span>Adresse du DO</span><input type="text" id="f-doAddress" autocomplete="off" placeholder="Saisie une fois, mémorisée pour ce DO"></label>
+              <label class="field"><span>Code postal et ville du DO</span><input type="text" id="f-doCpVille" autocomplete="off"></label>
               <div class="field"><span>Conditions de règlement</span>
                 <div class="radio-row">
                   <label><input type="radio" name="accompte" id="f-acc1" value="1"> Acompte de 50 % à la signature</label>
@@ -851,17 +851,25 @@ function chooseDo(text) {
   const t = text.trim();
   const found = S.catalog.dos.find((d) => d.name.toLowerCase() === t.toLowerCase() || d.code.toLowerCase() === t.toLowerCase());
   const d = S.cur;
+  const hasAddr = (a) => !!(a && ((a.address || "").trim() || (a.cpVille || "").trim()));
   if (found) {
     d.doCode = found.code; d.doName = found.name;
+    // an address typed in the CRM wins, but an empty memorised entry never hides the Mobility4 address
     const saved = S.doAddr[found.code];
-    d.doAddress = saved ? saved.address : found.address; d.doCpVille = saved ? saved.cpVille : found.cpVille;
+    const src = hasAddr(saved) ? saved : found;
+    d.doAddress = src.address || ""; d.doCpVille = src.cpVille || "";
     d.accompte = saved && typeof saved.accompte === "boolean" ? saved.accompte : !!found.accompte;
   } else {
+    // a DO typed by hand: never keep the previous DO's address
     d.doCode = t ? "X-" + t.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 30) : ""; d.doName = t;
+    const saved = S.doAddr[d.doCode];
+    d.doAddress = hasAddr(saved) ? saved.address || "" : ""; d.doCpVille = hasAddr(saved) ? saved.cpVille || "" : "";
   }
   loadIntoForm(); markDirty();
   const n = gridsOfDo(d.doCode).length;
-  if (d.doCode) toast(n ? `${n} BPU rattaché${n > 1 ? "s" : ""} à ${d.doName} ajouté${n > 1 ? "s" : ""} aux prestations` : `${d.doName} n'a pas de BPU rattaché : grille Bugbusters affichée`);
+  const noAddr = d.doCode && !d.doAddress && !d.doCpVille ? " · Adresse inconnue : saisissez-la, elle sera mémorisée" : "";
+  if (d.doCode) toast((n ? `${n} BPU rattaché${n > 1 ? "s" : ""} à ${d.doName} ajouté${n > 1 ? "s" : ""} aux prestations` : `${d.doName} n'a pas de BPU rattaché : grille Bugbusters affichée`) + noAddr);
+  if (noAddr) $("f-doAddress").focus();
 }
 
 function lineRow(l, i, n) {
@@ -1008,8 +1016,8 @@ async function saveCurrent(silent) {
   const ok = await Store.saveDevis(body);
   if (!ok) return;
   S.dirty = false; lsSet("bbcrm:last", d.id); renderHead();
-  // remember the DO address like Mobility4 does
-  if (d.doCode && d.doAddress !== undefined) {
+  // remember the DO address like Mobility4 does (never memorise an empty address)
+  if (d.doCode && ((d.doAddress || "").trim() || (d.doCpVille || "").trim())) {
     const prev = S.doAddr[d.doCode]; const nv = { address: d.doAddress || "", cpVille: d.doCpVille || "", accompte: !!d.accompte };
     if (!prev || prev.address !== nv.address || prev.cpVille !== nv.cpVille || prev.accompte !== nv.accompte) {
       S.doAddr = { ...S.doAddr, [d.doCode]: nv }; await Store.saveConfig("doaddr", { map: S.doAddr });
