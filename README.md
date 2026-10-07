@@ -1,6 +1,6 @@
 # CRM Devis Bugbusters
 
-Éditeur de devis Bugbusters : choix du DO, BPU rattachés et grille Mobility4 dans le panneau Prestations, PDF avec logo, en-tête et pied de page, historique des devis.
+Éditeur de devis Bugbusters : choix du DO, BPU rattachés et grille Mobility4 dans le panneau Prestations, PDF avec logo, en-tête et pied de page, historique des devis et suivi « Fil de l'eau » (activité, devis, production).
 
 - **Site** : GitHub Pages (fichier `index.html`, aucun serveur à gérer).
 - **Données** : Supabase, projet `crm-devis` (région Paris). Les BPU, la liste des DO et les devis sont dans la base, jamais dans ce dépôt.
@@ -21,6 +21,8 @@ Le code d'accès est le mot de passe d'un compte unique Supabase, `devis.equipe@
 2. **Fermer les inscriptions** : *Authentication → Sign In / Providers*, désactivez *Allow new users to sign up*.
 3. **Charger les BPU** : ouvrez le site, entrez avec le code, allez dans *BPU & DO* et importez le fichier `catalog.json` (transmis à part, ne le déposez pas dans ce dépôt).
 
+**Ajouter des BPU plus tard** : *BPU & DO → Importer des BPU (.json)*. L'import est additif : un aperçu indique les BPU nouveaux et mis à jour, rien n'est supprimé, et les rattachements DO ↔ BPU existants sont conservés. Un BPU qui porte le même identifiant qu'un BPU existant le remplace (nouvelle version de la grille).
+
 Pour changer le code d'accès : *Authentication → Users*, ouvrez le compte équipe et changez son mot de passe. Les personnes déjà connectées gardent leur session jusqu'à leur déconnexion.
 
 ## Fichiers
@@ -28,7 +30,7 @@ Pour changer le code d'accès : *Authentication → Users*, ouvrez le compte éq
 | Fichier | Rôle |
 |---|---|
 | `index.html` | L'application |
-| `supabase/schema.sql` | Structure de la base (tables, sécurité, historique), pour référence |
+| `supabase/schema.sql` | Structure de la base (tables, sécurité, historique, production), pour référence |
 | `.nojekyll` | Demande à GitHub Pages de servir les fichiers tels quels |
 
 ## Historique
@@ -37,6 +39,17 @@ Pour changer le code d'accès : *Authentication → Users*, ouvrez le compte éq
 - Bouton **Historique** sur chaque devis : ses versions, avec PDF de chaque version et restauration.
 - Les devis supprimés vont dans la **Corbeille** (filtre de la liste) et peuvent être restaurés.
 - Les enregistrements successifs d'une même personne sur 10 minutes sont regroupés en une ligne.
+
+## Fil de l'eau
+
+Onglet **Fil de l'eau**, reprise du fichier Excel « FIL DE L'EAU AUDIT-DEVIS » :
+
+- **Activité** : tableau de bord calculé en direct (devis par statut, taux de transformation, panier moyen, production par statut, CA et marge, chiffres par CDP, relances à faire, 12 derniers mois).
+- **Devis** : tous les devis avec CDP, activité, n° de ticket, date d'envoi, relances, jours sans relance et « À relancer » calculés comme dans l'Excel.
+- **Production** : une ligne est créée automatiquement quand un devis passe à « Accepté » (statut « A PLANIFIER »). Date d'intervention, technicien, prix d'achat ; la marge et le % de marge sont calculés.
+- **Listes** : répartition DO → CDP, délai de relance, listes des CDP, activités et techniciens.
+
+Le PDF « DO » d'un brouillon le passe automatiquement en « Envoyé – en attente » avec la date du jour.
 
 ## Gratuité et limites
 

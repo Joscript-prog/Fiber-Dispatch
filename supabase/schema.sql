@@ -76,3 +76,48 @@ revoke delete on public.devis from authenticated;
 revoke insert, update, delete on public.devis_historique from authenticated;
 
 alter publication supabase_realtime add table public.devis;
+
+-- Fil de l'eau : interventions (onglet PRODUCTION du fichier Excel)
+create table public.production (
+  id text primary key, devis_id text, statut text not null default 'A PLANIFIER',
+  date_intervention date, data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  updated_by text, deleted_at timestamptz
+);
+create index production_devis_idx on public.production (devis_id);
+create index production_date_idx on public.production (date_intervention desc);
+alter table public.production enable row level security;
+revoke all on public.production from anon;
+create policy production_team_select on public.production for select to authenticated using ((select public.is_team()));
+create policy production_team_insert on public.production for insert to authenticated with check ((select public.is_team()));
+create policy production_team_update on public.production for update to authenticated using ((select public.is_team())) with check ((select public.is_team()));
+revoke delete on public.production from authenticated;
+alter publication supabase_realtime add table public.production;
+
+-- Un devis qui passe à « Accepté » crée sa ligne de production (à planifier)
+create or replace function public.devis_to_production()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.status = 'accepte' and new.deleted_at is null
+     and (tg_op = 'INSERT' or old.status is distinct from 'accepte') then
+    if exists (select 1 from public.production where id = 'p-' || new.id) then
+      update public.production set deleted_at = null, updated_at = now(), updated_by = new.updated_by
+        where id = 'p-' || new.id and deleted_at is not null;
+    else
+      insert into public.production (id, devis_id, statut, data, updated_by)
+      values ('p-' || new.id, new.id, 'A PLANIFIER', jsonb_build_object(
+        'cdp', coalesce(new.data->>'cdp', ''),
+        'doName', coalesce(new.data->>'doName', new.do_name, ''),
+        'site', btrim(coalesce(new.data->'client'->>'name', '') || ' ' || coalesce(new.data->'client'->>'cpVille', '')),
+        'activite', coalesce(new.data->>'activite', ''),
+        'ticket', coalesce(new.data->>'ticket', ''),
+        'num', new.num, 'prixVente', new.total_ht, 'prixAchat', null,
+        'technicien', '', 'commentaire', ''
+      ), new.updated_by);
+    end if;
+  end if;
+  return new;
+end; $$;
+revoke all on function public.devis_to_production() from public, anon, authenticated;
+create trigger devis_production after insert or update on public.devis
+for each row execute function public.devis_to_production();

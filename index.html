@@ -121,6 +121,7 @@ textarea { resize: vertical; }
 .st-envoye { background: var(--warn-soft); color: var(--warn); }
 .st-accepte { background: var(--ok-soft); color: var(--ok); }
 .st-refuse { background: var(--bad-soft); color: var(--bad); }
+.st-erreur { background: var(--surface-2); color: var(--bad); border: 1px solid var(--bad-soft); }
 
 /* Lines table */
 .lines-wrap { overflow-x: auto; }
@@ -214,6 +215,42 @@ table.data td.r, table.data th.r { text-align: right; }
 .logo-box img { width: 88px; height: 88px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
 
 .banner { margin-bottom: 12px; }
+
+/* Fil de l'eau */
+.relance-mini { padding: 7px 0; font-size: 13px; color: var(--muted); }
+.sv-filters .chk { gap: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.sv-help { font-size: 12px; margin: 10px 0 0; max-width: 90ch; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.kpi .label { display: block; margin-bottom: 4px; }
+.kpi b { font-family: var(--f-display); font-size: 26px; color: var(--brand); font-variant-numeric: tabular-nums; display: block; line-height: 1.15; }
+.kpi span.sub { font-size: 12px; color: var(--muted); }
+.kpi.alert b { color: var(--accent); }
+.sv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.sv-grid > .wide { grid-column: 1 / -1; }
+table.sv { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.sv th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 2px solid var(--brand); white-space: nowrap; }
+table.sv td { padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+table.sv td.r, table.sv th.r { text-align: right; }
+table.sv tr.tot td { font-weight: 700; border-top: 2px solid var(--line); border-bottom: 0; }
+table.sv tr.click { cursor: pointer; } table.sv tr.click:hover td { background: var(--surface-2); }
+.sv-param { display: grid; grid-template-columns: auto auto; gap: 6px 14px; align-items: center; justify-content: start; margin-bottom: 10px; font-size: 13px; }
+.sv-param input { width: 80px; }
+.bar { height: 6px; border-radius: 3px; background: var(--brand); opacity: .75; margin-top: 3px; min-width: 2px; }
+.bar.acc { background: var(--accent); }
+table.data.edit td { padding: 5px 6px; }
+table.data.edit input, table.data.edit select { padding: 4px 6px; font-size: 13px; }
+table.data.edit .w-s { width: 92px; } table.data.edit .w-m { width: 130px; } table.data.edit .w-l { min-width: 170px; }
+table.data.edit .w-n { width: 86px; text-align: right; }
+tr.late td { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); }
+.oui { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; }
+.neg { color: var(--bad); font-weight: 700; }
+.pst { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.pst-REALISE { background: var(--ok-soft); color: var(--ok); }
+.pst-PLANIFIE { background: var(--warn-soft); color: var(--warn); }
+.pst-A_PLANIFIER { background: var(--accent-soft); color: var(--accent); }
+.pst-KO { background: var(--bad-soft); color: var(--bad); }
+@media (max-width: 900px) { .sv-grid, .kpis { grid-template-columns: minmax(0, 1fr); } }
 .who { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .linkish { border: 0; background: none; padding: 0; font-weight: 600; color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
@@ -264,6 +301,7 @@ table.data td.r, table.data th.r { text-align: right; }
   <nav class="tabs" role="tablist" aria-label="Vues">
     <button class="tab" role="tab" data-view="devis" aria-selected="true">Devis</button>
     <button class="tab" role="tab" data-view="liste" aria-selected="false">Liste des devis</button>
+    <button class="tab" role="tab" data-view="suivi" aria-selected="false" id="tabSuivi" hidden>Fil de l'eau</button>
     <button class="tab" role="tab" data-view="histo" aria-selected="false" id="tabHisto" hidden>Historique</button>
     <button class="tab" role="tab" data-view="bpu" aria-selected="false">BPU &amp; DO</button>
     <button class="tab" role="tab" data-view="societe" aria-selected="false">Société</button>
@@ -301,9 +339,10 @@ table.data td.r, table.data th.r { text-align: right; }
             <div class="doc-num" id="docNum">Nouveau devis</div>
             <select id="f-status" aria-label="Statut du devis" style="width:auto">
               <option value="brouillon">Brouillon</option>
-              <option value="envoye">Envoyé</option>
+              <option value="envoye">Envoyé – en attente</option>
               <option value="accepte">Accepté</option>
               <option value="refuse">Refusé</option>
+              <option value="erreur">Erreur</option>
             </select>
             <span class="save-state" id="saveState"></span>
             <div class="doc-actions">
@@ -354,7 +393,11 @@ table.data td.r, table.data th.r { text-align: right; }
             <label class="field"><span>Mode de règlement</span><input type="text" id="f-mode"></label>
             <label class="field"><span>Validité du devis</span><input type="date" id="f-validite"></label>
             <label class="field"><span>TVA (%)</span><input type="number" id="f-tva" min="0" step="0.1"></label>
-            <label class="field"><span>Ticket / n° interne</span><input type="text" id="f-ticket"></label>
+            <label class="field"><span>N° ticket audit</span><input type="text" id="f-ticket"></label>
+            <label class="field"><span>CDP</span><select id="f-cdp"></select></label>
+            <label class="field"><span>Activité</span><select id="f-activite"></select></label>
+            <label class="field"><span>Date d'envoi</span><input type="date" id="f-dateEnvoi"></label>
+            <div class="field"><span>Relances</span><div class="relance-mini" id="f-relances">—</div></div>
           </div>
         </div>
 
@@ -409,13 +452,74 @@ table.data td.r, table.data th.r { text-align: right; }
       <input type="search" id="listSearch" placeholder="Chercher un client, un DO, une référence…" style="max-width:320px">
       <select id="listStatus" style="width:auto">
         <option value="">Tous les statuts</option>
-        <option value="brouillon">Brouillon</option><option value="envoye">Envoyé</option>
-        <option value="accepte">Accepté</option><option value="refuse">Refusé</option>
+        <option value="brouillon">Brouillon</option><option value="envoye">Envoyé – en attente</option>
+        <option value="accepte">Accepté</option><option value="refuse">Refusé</option><option value="erreur">Erreur</option>
       </select>
       <button class="btn primary" id="btnNew2" type="button">Nouveau devis</button>
     </div>
     <div class="table-wrap" id="listWrap"></div>
   </section>
+
+  <!-- ============ FIL DE L'EAU ============ -->
+  <section class="view" id="view-suivi" hidden>
+    <div class="toolbar">
+      <h1>Fil de l'eau</h1>
+      <div class="seg" role="group" aria-label="Onglets du fil de l'eau">
+        <button type="button" data-sv="activite" aria-pressed="true">Activité</button>
+        <button type="button" data-sv="devis" aria-pressed="false">Devis</button>
+        <button type="button" data-sv="production" aria-pressed="false">Production</button>
+        <button type="button" data-sv="listes" aria-pressed="false">Listes</button>
+      </div>
+    </div>
+
+    <div id="sv-activite"></div>
+
+    <div id="sv-devis" hidden>
+      <div class="toolbar sv-filters">
+        <input type="search" id="svdSearch" placeholder="Chercher un DO, un client, un n° de devis ou de ticket…" style="max-width:300px">
+        <select id="svdStatut" style="width:auto"><option value="">Tous les statuts</option><option value="envoye">En attente</option><option value="accepte">Accepté</option><option value="refuse">Refusé</option><option value="erreur">Erreur</option></select>
+        <select id="svdCdp" style="width:auto"></select>
+        <label class="row chk"><input type="checkbox" id="svdRelance"> À relancer</label>
+        <label class="row chk"><input type="checkbox" id="svdVieux"> En attente depuis + de 30 j</label>
+        <label class="row chk"><input type="checkbox" id="svdJamais"> Jamais relancés</label>
+      </div>
+      <div class="table-wrap" id="svdWrap"></div>
+      <p class="muted sv-help">Un devis entre ici dès qu'il quitte l'état Brouillon (le PDF « pour le DO » le passe en « Envoyé – en attente »). Les jours sans relance se comptent depuis la dernière relance, ou depuis la date d'envoi.</p>
+    </div>
+
+    <div id="sv-production" hidden>
+      <div class="toolbar sv-filters">
+        <input type="search" id="svpSearch" placeholder="Chercher un site, un DO, un ticket, un technicien…" style="max-width:300px">
+        <select id="svpStatut" style="width:auto"></select>
+        <select id="svpCdp" style="width:auto"></select>
+        <label class="row chk"><input type="checkbox" id="svpSansTech"> Planifiées sans technicien</label>
+        <label class="row chk"><input type="checkbox" id="svpNeg"> Marge négative</label>
+        <button class="btn primary" id="svpAdd" type="button" style="margin-left:auto">Nouvelle intervention</button>
+      </div>
+      <div class="table-wrap" id="svpWrap"></div>
+      <p class="muted sv-help">Un devis accepté crée automatiquement sa ligne « À planifier » avec son prix de vente. Saisissez la date, le technicien et le prix d'achat : la marge se calcule seule.</p>
+    </div>
+
+    <div id="sv-listes" hidden>
+      <div class="settings">
+        <div class="panel stack">
+          <h2>Répartition des DO <small>CDP proposé à la création du devis</small></h2>
+          <div class="mini-table" style="max-height:none"><table><thead><tr><th>Donneur d'ordre</th><th>CDP</th><th></th></tr></thead><tbody id="svlRep"></tbody></table></div>
+          <div class="row"><input type="text" id="svlRepDo" list="doList" placeholder="Ajouter un DO…" style="max-width:260px"><select id="svlRepCdp" style="width:auto"></select><button class="btn sm" id="svlRepAdd" type="button">Ajouter</button></div>
+          <p class="muted" style="margin:0;font-size:12px">Un DO absent de cette liste est classé « À arbitrer ».</p>
+        </div>
+        <div class="panel stack">
+          <h2>Réglages</h2>
+          <label class="field"><span>Relancer au bout de (jours)</span><input type="number" id="svlDelai" min="1" step="1" style="max-width:120px"></label>
+          <label class="field"><span>CDP (un par ligne)</span><textarea id="svlCdps" rows="5"></textarea></label>
+          <label class="field"><span>Activités (une par ligne)</span><textarea id="svlActs" rows="5"></textarea></label>
+          <label class="field"><span>Techniciens proposés (un par ligne)</span><textarea id="svlTechs" rows="6"></textarea></label>
+          <div class="row"><button class="btn primary" id="svlSave" type="button">Enregistrer les listes</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <datalist id="techList"></datalist>
 
   <!-- ============ HISTORIQUE ============ -->
   <section class="view" id="view-histo" hidden>
@@ -437,8 +541,8 @@ table.data td.r, table.data th.r { text-align: right; }
     </div>
     <div class="panel stack" id="catalogImport" hidden style="margin-bottom:14px">
       <h2 id="catalogImportTitle">Catalogue des BPU</h2>
-      <p class="muted" style="margin:0;font-size:13px;max-width:72ch" id="catalogImportText">Importez le fichier catalog.json pour charger ou mettre à jour les BPU importés et la liste des DO. Les BPU créés dans le CRM, les devis et les rattachements ne sont pas modifiés.</p>
-      <div class="row"><label class="btn primary" for="catalogFile">Importer catalog.json…</label><input type="file" id="catalogFile" accept="application/json,.json" hidden></div>
+      <p class="muted" style="margin:0;font-size:13px;max-width:72ch" id="catalogImportText">Importez un fichier .json de BPU (catalog.json ou un fichier de nouveaux BPU). L'import est additif : un aperçu s'affiche avant de valider, et rien n'est supprimé.</p>
+      <div class="row"><label class="btn primary" for="catalogFile">Importer des BPU (.json)…</label><input type="file" id="catalogFile" accept="application/json,.json" hidden></div>
     </div>
     <p class="muted" style="margin:0 0 12px;max-width:72ch">Chaque BPU est rattaché à un ou plusieurs DO. Quand vous choisissez un DO dans un devis, ses BPU s'affichent dans le panneau Prestations, avec la grille Bugbusters de Mobility4. Les BPU importés sont en lecture seule : dupliquez-les pour changer un prix.</p>
     <div id="gridEditor" hidden></div>
@@ -523,7 +627,7 @@ const DEFAULT_COMPANY = {
   prefix: "DV",
   logo: ""
 };
-const STATUS = { brouillon: "Brouillon", envoye: "Envoyé", accepte: "Accepté", refuse: "Refusé" };
+const STATUS = { brouillon: "Brouillon", envoye: "Envoyé – en attente", accepte: "Accepté", refuse: "Refusé", erreur: "Erreur" };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -536,8 +640,10 @@ const money = (n) => fmtNum(n) + " €";
 function parseNum(s) { if (s === null || s === undefined || s === "") return null; const v = Number(String(s).replace(/\s/g, "").replace(",", ".")); return Number.isFinite(v) ? v : null; }
 function qtyStr(q) { const v = round2(q); return Number.isInteger(v) ? String(v) : fmtNum(v); }
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, "").slice(0, 20);
-const todayISO = () => new Date().toISOString().slice(0, 10);
-function addDays(iso, n) { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+const isoLocal = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+const todayISO = () => isoLocal(new Date());
+function addDays(iso, n) { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return isoLocal(d); }
+function dayDiff(fromIso, toIso) { return Math.round((Date.parse(toIso + "T12:00:00Z") - Date.parse(fromIso + "T12:00:00Z")) / 86400000); }
 function frDate(iso) { if (!iso) return ""; const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; }
 const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 let toastT; function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2400); }
@@ -552,6 +658,7 @@ const S = {
   doAddr: {},               // stored DO addresses
   company: { ...DEFAULT_COMPANY },
   devis: [],                // saved devis
+  production: [],           // fil de l'eau : interventions
   cur: null,                // devis being edited
   dirty: false,
   scopeAll: false,
@@ -612,7 +719,7 @@ const ArtifactStore = (() => {
   }
   return {
     init, onDevis, onGrids, onConfig,
-    features: { history: false, trash: false, catalogImport: false },
+    features: { history: false, trash: false, catalogImport: false, suivi: false },
     loadCatalog: async () => { const r = await fetch("catalog.json"); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); },
     get mode() { return mode; },
     newId: () => (mode === "db" ? db.collection("devis").doc().id : uid()),
@@ -627,8 +734,9 @@ const ArtifactStore = (() => {
 /* ---------------- storage: Supabase (GitHub Pages version, shared access code) ---------------- */
 function makeSupaStore(cfg) {
   const sb = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "crm-devis-auth" } });
-  const subs = { devis: [], grids: [], config: [] };
-  const cache = { devis: [], config: {} };
+  const subs = { devis: [], grids: [], config: [], production: [] };
+  const cache = { devis: [], config: {}, production: [] };
+  let refreshProdT;
   let author = lsGet("crm:author", "");
   const q = async (p) => { const { data, error } = await p; if (error) throw error; return data; };
   const isAuthErr = (e) => e && (e.status === 401 || /jwt|token|auth/i.test(e.message || "") || e.code === "PGRST301");
@@ -665,7 +773,7 @@ function makeSupaStore(cfg) {
   }
   return {
     sb,
-    features: { history: true, trash: true, catalogImport: true },
+    features: { history: true, trash: true, catalogImport: true, suivi: true },
     get mode() { return "supabase"; },
     get author() { return author; },
     setAuthor(n) { author = n; lsSet("crm:author", n); },
@@ -737,18 +845,62 @@ function makeSupaStore(cfg) {
       try { await q(sb.from("config").upsert({ key: k, data: body, updated_at: now(), updated_by: author || null })); cache.config = { ...cache.config, [k]: body }; subs.config.forEach((f) => f(cache.config)); return true; }
       catch (e) { return fail(e, "Enregistrement des réglages"); }
     },
+    /* Import additif : ne supprime jamais rien.
+       - BPU : même identifiant → remplacé par la nouvelle version (ordre conservé) ; nouvel identifiant → ajouté à la fin.
+       - DO : la liste est complétée (les DO existants restent tels quels).
+       - Rattachements DO → BPU : ajoutés à ceux qui existent déjà (y compris ceux modifiés dans l'application). */
     async importCatalog(cat) {
       try {
-        const rows = cat.grids.map((g, i) => ({ id: g.id, name: g.name, source: g.source || "", builtin: true, ord: i, items: g.items, updated_at: now(), updated_by: author || null }));
+        const [cur, cfgRows] = await Promise.all([
+          q(sb.from("bpu").select("id,ord")),
+          q(sb.from("config").select("key,data").in("key", ["dos", "mapping_default", "mapping"]))
+        ]);
+        const conf = {}; cfgRows.forEach((r) => { conf[r.key] = r.data; });
+        const ordOf = new Map(cur.map((r) => [r.id, r.ord])); let maxOrd = Math.max(0, ...cur.filter((r) => r.ord < 500).map((r) => r.ord));
+        const rows = cat.grids.map((g) => ({ id: g.id, name: g.name, source: g.source || "", builtin: true,
+          ord: ordOf.has(g.id) ? ordOf.get(g.id) : ++maxOrd, items: g.items, updated_at: now(), updated_by: author || null }));
         for (let i = 0; i < rows.length; i += 4) await q(sb.from("bpu").upsert(rows.slice(i, i + 4)));
-        await q(sb.from("config").upsert([
-          { key: "dos", data: { list: cat.dos }, updated_at: now(), updated_by: author || null },
-          { key: "mapping_default", data: { map: cat.mapping }, updated_at: now(), updated_by: author || null }
-        ]));
+        const mergeMap = (base) => { const m = JSON.parse(JSON.stringify(base || {})); Object.entries(cat.mapping || {}).forEach(([code, ids]) => { m[code] = Array.from(new Set([...(m[code] || []), ...ids])); }); return m; };
+        const upd = [{ key: "mapping_default", data: { map: mergeMap(conf.mapping_default && conf.mapping_default.map) }, updated_at: now(), updated_by: author || null }];
+        if (conf.mapping && conf.mapping.map) upd.push({ key: "mapping", data: { map: mergeMap(conf.mapping.map) }, updated_at: now(), updated_by: author || null });
+        if (Array.isArray(cat.dos) && cat.dos.length) {
+          const list = ((conf.dos && conf.dos.list) || []).slice(); const known = new Set(list.map((d) => d.code));
+          cat.dos.forEach((d) => { if (d && d.code && !known.has(d.code)) { list.push(d); known.add(d.code); } });
+          upd.push({ key: "dos", data: { list }, updated_at: now(), updated_by: author || null });
+        }
+        await q(sb.from("config").upsert(upd));
+        await refreshOthers();
         return true;
       } catch (e) { return fail(e, "Import du catalogue"); }
+    },
+    /* ---- Fil de l'eau : interventions (production) ---- */
+    onProduction(cb) {
+      subs.production = subs.production || []; subs.production.push(cb);
+      loadProduction().catch((e) => fail(e, "Chargement de la production"));
+      sb.channel("production-live").on("postgres_changes", { event: "*", schema: "public", table: "production" }, refreshProdSoon).subscribe();
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshProdSoon(); });
+    },
+    refreshProduction() { refreshProdSoon(); },
+    async saveProduction(p) {
+      try {
+        await q(sb.from("production").upsert({ id: p.id, devis_id: p.devisId || null, statut: p.statut || "A PLANIFIER", date_intervention: p.dateIntervention || null,
+          data: p, updated_at: now(), updated_by: author || null }));
+        const i = cache.production.findIndex((x) => x.id === p.id); const row = { ...p, updatedBy: author };
+        if (i >= 0) cache.production[i] = row; else cache.production.unshift(row);
+        (subs.production || []).forEach((f) => f(cache.production)); return true;
+      } catch (e) { return fail(e, "Enregistrement de l'intervention"); }
+    },
+    async deleteProduction(id) {
+      try { await q(sb.from("production").update({ deleted_at: now(), updated_by: author || null }).eq("id", id)); cache.production = cache.production.filter((x) => x.id !== id); (subs.production || []).forEach((f) => f(cache.production)); return true; }
+      catch (e) { return fail(e, "Suppression de l'intervention"); }
     }
   };
+  async function loadProduction() {
+    const rows = await q(sb.from("production").select("id,devis_id,statut,date_intervention,data,updated_by").is("deleted_at", null).limit(5000));
+    cache.production = rows.map((r) => ({ ...r.data, id: r.id, devisId: r.devis_id, statut: r.statut, dateIntervention: r.date_intervention || "", updatedBy: r.updated_by }));
+    (subs.production || []).forEach((f) => f(cache.production));
+  }
+  function refreshProdSoon() { clearTimeout(refreshProdT); refreshProdT = setTimeout(() => loadProduction().catch(() => {}), 500); }
 }
 
 const CRM_CFG = window.CRM_CONFIG || null;
@@ -789,6 +941,7 @@ function blankDevis() {
     reference: "", refBTE: "", ticket: "", mode: c.mode || "Virement Bancaire",
     client: { name: "", address: "", cpVille: "" },
     validite: addDays(todayISO(), 30), tva: Number(c.tva) || 20,
+    cdp: "", cdpAuto: true, activite: "", dateEnvoi: "", relances: 0, derniereRelance: "", commentaire: "",
     extraGrids: [], lines: []
   };
 }
@@ -808,8 +961,13 @@ function nextNumber() {
 /* ---------------- devis editor ---------------- */
 const F = {
   doName: "f-doName", doAddress: "f-doAddress", doCpVille: "f-doCpVille", reference: "f-reference", refBTE: "f-refBTE",
-  ticket: "f-ticket", mode: "f-mode", validite: "f-validite"
+  ticket: "f-ticket", mode: "f-mode", validite: "f-validite", dateEnvoi: "f-dateEnvoi"
 };
+function fillSelect(sel, values, current, emptyLabel) {
+  const vals = values.slice(); if (current && !vals.includes(current)) vals.push(current);
+  sel.innerHTML = (emptyLabel !== undefined ? `<option value="">${esc(emptyLabel)}</option>` : "") + vals.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  sel.value = current || "";
+}
 function loadIntoForm() {
   const d = S.cur;
   $("f-do").value = d.doCode ? (doName(d.doCode) || d.doName) : (d.doName || "");
@@ -817,6 +975,8 @@ function loadIntoForm() {
   $("f-clientName").value = d.client.name || ""; $("f-clientAddress").value = d.client.address || ""; $("f-clientCpVille").value = d.client.cpVille || "";
   $("f-tva").value = d.tva; $("f-status").value = d.status || "brouillon";
   $("f-acc1").checked = !!d.accompte; $("f-acc0").checked = !d.accompte;
+  fillSelect($("f-cdp"), SUIVI().cdps, d.cdp, "—"); fillSelect($("f-activite"), SUIVI().activites, d.activite, "—");
+  $("f-relances").textContent = d.relances ? `${d.relances} · dernière le ${frDate(d.derniereRelance)}` : (d.status === "envoye" ? "Jamais relancé" : "—");
   renderHead(); renderLines(); renderCatalog();
 }
 function renderHead() {
@@ -842,7 +1002,13 @@ function bindForm() {
   $("f-clientAddress").addEventListener("input", (e) => { S.cur.client.address = e.target.value; markDirty(); });
   $("f-clientCpVille").addEventListener("input", (e) => { S.cur.client.cpVille = e.target.value; markDirty(); });
   $("f-tva").addEventListener("input", (e) => { S.cur.tva = parseNum(e.target.value) ?? 0; renderTotals(); markDirty(); });
-  $("f-status").addEventListener("change", (e) => { S.cur.status = e.target.value; markDirty(); });
+  $("f-status").addEventListener("change", (e) => {
+    S.cur.status = e.target.value;
+    if (S.cur.status !== "brouillon" && !S.cur.dateEnvoi) { S.cur.dateEnvoi = todayISO(); $("f-dateEnvoi").value = S.cur.dateEnvoi; }
+    markDirty();
+  });
+  $("f-cdp").addEventListener("change", (e) => { S.cur.cdp = e.target.value; S.cur.cdpAuto = false; markDirty(); });
+  $("f-activite").addEventListener("change", (e) => { S.cur.activite = e.target.value; markDirty(); });
   $("f-acc1").addEventListener("change", () => { S.cur.accompte = true; markDirty(); });
   $("f-acc0").addEventListener("change", () => { S.cur.accompte = false; markDirty(); });
   $("f-do").addEventListener("change", (e) => chooseDo(e.target.value));
@@ -865,6 +1031,7 @@ function chooseDo(text) {
     const saved = S.doAddr[d.doCode];
     d.doAddress = hasAddr(saved) ? saved.address || "" : ""; d.doCpVille = hasAddr(saved) ? saved.cpVille || "" : "";
   }
+  if (d.cdpAuto !== false || !d.cdp) { d.cdp = d.doCode ? cdpForDo(d.doCode) : ""; d.cdpAuto = true; }
   loadIntoForm(); markDirty();
   const n = gridsOfDo(d.doCode).length;
   const noAddr = d.doCode && !d.doAddress && !d.doCpVille ? " · Adresse inconnue : saisissez-la, elle sera mémorisée" : "";
@@ -1011,11 +1178,17 @@ async function saveCurrent(silent) {
   const d = S.cur; const now = Date.now();
   if (!d.id) { d.id = Store.newId(); d.createdAt = now; }
   if (!d.num) d.num = nextNumber();
+  if (d.status !== "brouillon" && !d.dateEnvoi) d.dateEnvoi = todayISO();
+  // relances et commentaire se modifient dans le fil de l'eau : on garde la dernière valeur enregistrée
+  const latest = S.devis.find((x) => x.id === d.id);
+  if (latest) { d.relances = Number(latest.relances) || 0; d.derniereRelance = latest.derniereRelance || ""; d.commentaire = latest.commentaire || ""; }
+  if (d.doCode && !d.cdp) { d.cdp = cdpForDo(d.doCode); d.cdpAuto = true; }
   d.updatedAt = now;
   const body = JSON.parse(JSON.stringify(d));
   const ok = await Store.saveDevis(body);
   if (!ok) return;
   S.dirty = false; lsSet("bbcrm:last", d.id); renderHead();
+  if (d.status === "accepte" && Store.refreshProduction) Store.refreshProduction();
   // remember the DO address like Mobility4 does (never memorise an empty address)
   if (d.doCode && ((d.doAddress || "").trim() || (d.doCpVille || "").trim())) {
     const prev = S.doAddr[d.doCode]; const nv = { address: d.doAddress || "", cpVille: d.doCpVille || "", accompte: !!d.accompte };
@@ -1039,6 +1212,7 @@ function newDevis() { S.cur = blankDevis(); S.dirty = false; loadIntoForm(); sho
 function duplicateDevis(src) {
   const d = normalizeDevis(JSON.parse(JSON.stringify(src)));
   d.id = null; d.num = ""; d.status = "brouillon"; d.createdAt = null; d.updatedAt = null; d.validite = addDays(todayISO(), 30);
+  d.dateEnvoi = ""; d.relances = 0; d.derniereRelance = ""; d.commentaire = "";
   d.lines.forEach((l) => (l.id = uid()));
   S.cur = d; S.dirty = true; loadIntoForm(); showView("devis"); toast("Copie créée : enregistrez-la pour lui donner un numéro");
 }
@@ -1127,11 +1301,17 @@ async function saveFile(name, blob) {
 }
 async function makePdf(forWhom, other) {
   if (!window.pdfMake || !pdfMake.createPdf) { toast("Le module PDF ne s'est pas chargé. Vérifiez la connexion internet puis rechargez la page."); return; }
+  // Fil de l'eau : le PDF « pour le DO » d'un brouillon part chez le DO → devis envoyé, en attente de réponse
+  let markedSent = false;
+  if (!other && forWhom === "do" && Store.features.suivi && S.cur.status === "brouillon" && !S.readOnly && S.storeReady && S.cur.lines.length) {
+    S.cur.status = "envoye"; if (!S.cur.dateEnvoi) S.cur.dateEnvoi = todayISO();
+    $("f-status").value = "envoye"; $("f-dateEnvoi").value = S.cur.dateEnvoi; S.dirty = true; markedSent = true;
+  }
   if (!other && S.dirty && !S.readOnly && S.storeReady) await saveCurrent(true);
   const d = other ? normalizeDevis(other) : S.cur; const logo = S.company.logo || DEFAULT_LOGO;
   const doc = buildPdfDoc(d, S.company, logo, forWhom);
   const name = pdfFileName(d, forWhom);
-  pdfMake.createPdf(doc).getBlob(async (blob) => { if (await saveFile(name, blob)) toast("PDF prêt : " + name); });
+  pdfMake.createPdf(doc).getBlob(async (blob) => { if (await saveFile(name, blob)) toast("PDF prêt : " + name + (markedSent ? " · devis passé en « Envoyé – en attente »" : "")); });
 }
 
 /* ---------------- backup (export / import) ---------------- */
@@ -1245,13 +1425,37 @@ function renderJournalRows() {
 }
 
 /* ---------------- catalogue import (Supabase version) ---------------- */
+let pendingCatalog = null;
 async function importCatalogFile(file) {
-  let cat; try { cat = JSON.parse(await file.text()); } catch (e) { toast("Ce fichier n'est pas un catalogue lisible"); return; }
-  if (!cat || !Array.isArray(cat.grids) || !Array.isArray(cat.dos) || !cat.mapping) { toast("Ce fichier n'est pas catalog.json"); return; }
-  toast("Import du catalogue en cours…");
-  if (!(await Store.importCatalog(cat))) return;
-  S.catalog = await Store.loadCatalog(); afterCatalog();
-  toast(`Catalogue importé : ${cat.grids.length} BPU, ${cat.dos.length} DO`);
+  let cat; try { cat = JSON.parse(await file.text()); } catch (e) { toast("Ce fichier n'est pas un fichier de BPU lisible (.json)"); return; }
+  if (!cat || !Array.isArray(cat.grids) || !cat.grids.length || cat.grids.some((g) => !g || !g.id || !g.name || !Array.isArray(g.items))) { toast("Ce fichier ne contient pas de BPU au format du CRM"); return; }
+  if (cat.mapping && typeof cat.mapping !== "object") { toast("Ce fichier ne contient pas de BPU au format du CRM"); return; }
+  pendingCatalog = cat;
+  const known = new Map(allGrids().map((g) => [g.id, g]));
+  const m = mapping();
+  const rows = cat.grids.map((g) => {
+    const cur = known.get(g.id); const dos = Object.entries(cat.mapping || {}).filter(([, ids]) => ids.includes(g.id)).map(([c]) => c);
+    const newDos = dos.filter((c) => !(m[c] || []).includes(g.id));
+    const already = Object.keys(m).filter((c) => (m[c] || []).includes(g.id));
+    return `<tr><td>${cur ? `<span class="act act-statut">Mise à jour</span>` : `<span class="act act-création">Nouveau</span>`}</td>
+      <td><b>${esc(g.name)}</b>${cur && cur.name !== g.name ? `<div class="muted" style="font-size:12px">remplace « ${esc(cur.name)} »</div>` : ""}</td>
+      <td class="r num">${cur ? `${cur.items.length} → ` : ""}${g.items.length}</td>
+      <td>${[...already.map((c) => esc(doName(c))), ...newDos.map((c) => `<b>+ ${esc(doName(c))}</b>`)].join(", ") || `<span class="muted">aucun (via « Utiliser aussi le BPU de… »)</span>`}</td></tr>`;
+  }).join("");
+  const nNew = cat.grids.filter((g) => !known.has(g.id)).length, nUpd = cat.grids.length - nNew;
+  const nDo = Array.isArray(cat.dos) ? cat.dos.filter((d) => d && d.code && !S.catalog.dos.some((x) => x.code === d.code)).length : 0;
+  openModal("Importer des BPU", `<div style="padding:12px 16px 4px" class="stack">
+    <div class="note info"><b>Rien n'est supprimé.</b> ${nNew} BPU nouveau${nNew > 1 ? "x" : ""}, ${nUpd} mis à jour (remplacé${nUpd > 1 ? "s" : ""} par la version du fichier)${nDo ? `, ${nDo} DO ajouté${nDo > 1 ? "s" : ""} à la liste` : ""}. Les autres BPU, les devis, les BPU créés dans le CRM et les rattachements existants restent tels quels.</div>
+    </div><div style="overflow-x:auto"><table class="data" style="min-width:560px"><thead><tr><th></th><th>BPU</th><th class="r">Prestations</th><th>DO rattachés</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row" style="padding:12px 16px"><button class="btn primary" id="confirmImport" type="button">Importer ${cat.grids.length} BPU</button><button class="btn ghost" id="cancelImport" type="button">Annuler</button></div>`);
+  $("confirmImport").onclick = async () => {
+    $("confirmImport").disabled = true; $("confirmImport").textContent = "Import en cours…";
+    const c = pendingCatalog; pendingCatalog = null;
+    if (!(await Store.importCatalog(c))) { closeModal(); return; }
+    S.catalog = await Store.loadCatalog(); afterCatalog(); closeModal();
+    toast(`Import terminé : ${nNew} BPU ajouté${nNew > 1 ? "s" : ""}, ${nUpd} mis à jour`);
+  };
+  $("cancelImport").onclick = () => { pendingCatalog = null; closeModal(); };
 }
 function afterCatalog() {
   $("doList").innerHTML = S.catalog.dos.map((d) => `<option value="${esc(d.name)}"></option>`).join("");
@@ -1368,11 +1572,287 @@ function bindCompany() {
   });
 }
 
+/* ---------------- fil de l'eau (suivi des devis et de la production) ---------------- */
+/* Reprend le classeur « FIL DE L'EAU AUDIT-DEVIS V2 » : onglets ACTIVITÉ, DEVIS, PRODUCTION et LISTES.
+   Chaque formule du classeur est recalculée ici à partir des devis du CRM et des interventions. */
+const DEFAULT_SUIVI = { delaiRelance: 7, cdps: ["À arbitrer"], activites: ["CABLAGE", "GC", "INFRA", "SAV"], techniciens: [], repartition: {} };
+const ARBITRER = "À arbitrer";
+const PROD_STATUTS = ["A PLANIFIER", "PLANIFIE", "REALISE", "REPORTE", "KO CLIENT", "KO BUG", "ANNULE J", "ANNULE J-1", "ANNULE J-2"];
+const PROD_LABEL = { "A PLANIFIER": "À planifier", PLANIFIE: "Planifié", REALISE: "Réalisé", REPORTE: "Reporté", "KO CLIENT": "KO client", "KO BUG": "KO Bug", "ANNULE J": "Annulé J", "ANNULE J-1": "Annulé J-1", "ANNULE J-2": "Annulé J-2" };
+const PROD_KO = ["KO CLIENT", "KO BUG", "ANNULE J", "ANNULE J-1", "ANNULE J-2", "REPORTE"];
+const SVD = [["envoye", "En attente"], ["accepte", "Accepté"], ["refuse", "Refusé"], ["erreur", "Erreur"]];
+let suiviCfg = null;
+function SUIVI() { const c = suiviCfg || {}; return { ...DEFAULT_SUIVI, ...c, repartition: c.repartition || DEFAULT_SUIVI.repartition }; }
+function cdpForDo(code) { return SUIVI().repartition[code] || ARBITRER; }
+let svView = "activite";
+const svF = { relance: false, vieux: false, jamais: false, sansTech: false, neg: false };
+const prodClass = (s) => s === "REALISE" ? "pst-REALISE" : s === "PLANIFIE" ? "pst-PLANIFIE" : s === "A PLANIFIER" ? "pst-A_PLANIFIER" : "pst-KO";
+const pct = (v) => v === null || !isFinite(v) ? "" : (Math.round(v * 1000) / 10).toString().replace(".", ",") + " %";
+
+/* ---- formules ---- */
+const svDevis = () => S.devis.filter((d) => d && d.status && d.status !== "brouillon");
+const montant = (d) => totals(d).ht;
+function joursSansRelance(d) { // DEVIS!M
+  if (d.status !== "envoye") return null;
+  const ref = d.derniereRelance || d.dateEnvoi; return ref ? dayDiff(ref, todayISO()) : null;
+}
+const aRelancer = (d) => { const j = joursSansRelance(d); return d.status === "envoye" && j !== null && j >= SUIVI().delaiRelance; }; // DEVIS!N
+const vieux = (d) => d.status === "envoye" && d.dateEnvoi && d.dateEnvoi < addDays(todayISO(), -30);
+const jamaisRelance = (d) => d.status === "envoye" && !(Number(d.relances) > 0);
+const marge = (p) => { const v = parseNum(p.prixVente), a = parseNum(p.prixAchat); return v !== null && a !== null ? round2(v - a) : null; }; // PRODUCTION!I
+const margePct = (p) => { const v = parseNum(p.prixVente), m = marge(p); return v && m !== null ? m / v : null; }; // PRODUCTION!M
+function prochainJourRelance() { // TODAY()+CHOOSE(WEEKDAY(TODAY(),2),1,0,1,0,4,3,2) : mardi et jeudi
+  const t = new Date(); const wd = ((t.getDay() + 6) % 7) + 1; return addDays(todayISO(), [1, 0, 1, 0, 4, 3, 2][wd - 1]);
+}
+const sumBy = (arr, f) => round2(arr.reduce((s, x) => s + (Number(f(x)) || 0), 0));
+
+/* ---- ACTIVITÉ ---- */
+function renderActivite() {
+  const D = svDevis(), P = S.production || [], cfg = SUIVI();
+  const by = (st) => D.filter((d) => d.status === st);
+  const total = D.filter((d) => ["envoye", "accepte", "refuse", "erreur"].includes(d.status));
+  const nAcc = by("accepte").length, nRef = by("refuse").length;
+  const transfo = nAcc + nRef ? nAcc / (nAcc + nRef) : null;
+  const brouillons = S.devis.filter((d) => d.status === "brouillon").length;
+  const devisRows = SVD.map(([st, lab]) => { const a = by(st), m = sumBy(a, montant); return `<tr class="click" data-go="devis" data-st="${st}"><td><span class="status-chip st-${st}">${lab}</span></td><td class="r">${a.length}</td><td class="r">${money(m)}</td><td class="r">${total.length ? pct(a.length / total.length) : ""}</td><td class="r">${a.length ? money(m / a.length) : ""}</td></tr>`; }).join("");
+  const mTot = sumBy(total, montant);
+  const pGroups = [["A PLANIFIER", "À planifier", (p) => p.statut === "A PLANIFIER"], ["PLANIFIE", "Planifié", (p) => p.statut === "PLANIFIE"], ["REALISE", "Réalisé", (p) => p.statut === "REALISE"], ["KO", "Annulé / KO", (p) => PROD_KO.includes(p.statut)]];
+  const prodRows = pGroups.map(([k, lab, f]) => { const a = P.filter(f), ca = sumBy(a, (p) => p.prixVente), mg = sumBy(a, marge); return `<tr class="click" data-go="production" data-st="${k}"><td><span class="pst ${prodClass(k)}">${lab}</span></td><td class="r">${a.length}</td><td class="r">${money(ca)}</td><td class="r ${mg < 0 ? "neg" : ""}">${money(mg)}</td><td class="r">${ca ? pct(mg / ca) : ""}</td></tr>`; }).join("");
+  const pAll = P.filter((p) => pGroups.some(([, , f]) => f(p))); const caAll = sumBy(pAll, (p) => p.prixVente), mgAll = sumBy(pAll, marge);
+  const cdps = cfg.cdps.length ? cfg.cdps : [ARBITRER];
+  const cdpOf = (x) => x.cdp || ARBITRER;
+  const cdpDevis = cdps.map((c) => { const a = D.filter((d) => cdpOf(d) === c); const at = a.filter((d) => d.status === "envoye").length, ac = a.filter((d) => d.status === "accepte").length, rf = a.filter((d) => d.status === "refuse").length; return [c, at, ac, rf]; });
+  const cdpCa = cdps.map((c) => { const acc = sumBy(D.filter((d) => cdpOf(d) === c && d.status === "accepte"), montant); const real = P.filter((p) => cdpOf(p) === c && p.statut === "REALISE"); return [c, acc, sumBy(real, (p) => p.prixVente), sumBy(real, marge)]; });
+  const tot = (rows, i) => rows.reduce((s, r) => s + r[i], 0);
+  const relance = cdps.map((c) => { const a = D.filter((d) => cdpOf(d) === c && aRelancer(d)); return [c, a.length, sumBy(a, montant)]; });
+  const nRel = tot(relance, 1);
+  const prio = [
+    ["vieux", "Devis en attente depuis plus de 30 jours", D.filter(vieux).length],
+    ["jamais", "Devis jamais relancés", D.filter(jamaisRelance).length],
+    ["sansTech", "Interventions planifiées sans technicien", P.filter((p) => p.statut === "PLANIFIE" && !(p.technicien || "").trim()).length],
+    ["neg", "Interventions planifiées à marge négative", P.filter((p) => p.statut === "PLANIFIE" && (marge(p) ?? 0) < 0).length],
+    ["arbitrer", "Devis avec CDP « À arbitrer » (DO hors répartition)", D.filter((d) => cdpOf(d) === ARBITRER).length]
+  ];
+  const first = new Date(); first.setDate(1); const months = [];
+  for (let i = 11; i >= 0; i--) { const d = new Date(first.getFullYear(), first.getMonth() - i, 1); months.push(isoLocal(d).slice(0, 7)); }
+  const mRows = months.map((m) => { const env = D.filter((d) => (d.dateEnvoi || "").startsWith(m)); const pr = P.filter((p) => (p.dateIntervention || "").startsWith(m)); return [m, env.length, env.filter((d) => d.status === "accepte").length, sumBy(pr, (p) => p.prixVente), sumBy(pr, marge)]; });
+  const maxEnv = Math.max(1, ...mRows.map((r) => r[1])), maxCa = Math.max(1, ...mRows.map((r) => r[3]));
+  const mLabel = (m) => new Date(m + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+  const enAttente = by("envoye");
+  $("sv-activite").innerHTML = `
+  <div class="kpis">
+    <div class="kpi"><span class="label">Devis en attente</span><b>${enAttente.length}</b><span class="sub">${money(sumBy(enAttente, montant))} HT${brouillons ? ` · ${brouillons} brouillon${brouillons > 1 ? "s" : ""} non envoyé${brouillons > 1 ? "s" : ""}` : ""}</span></div>
+    <div class="kpi"><span class="label">Taux de transformation</span><b>${transfo === null ? "—" : pct(transfo)}</b><span class="sub">acceptés / (acceptés + refusés)</span></div>
+    <div class="kpi ${nRel ? "alert" : ""}"><span class="label">À relancer</span><b>${nRel}</b><span class="sub">prochaine relance le ${frDate(prochainJourRelance())}</span></div>
+    <div class="kpi"><span class="label">CA production réalisé</span><b>${money(sumBy(P.filter((p) => p.statut === "REALISE"), (p) => p.prixVente))}</b><span class="sub">marge ${money(sumBy(P.filter((p) => p.statut === "REALISE"), marge))}</span></div>
+  </div>
+  <div class="sv-grid">
+    <div class="panel"><h2>Devis</h2><div style="overflow-x:auto"><table class="sv"><thead><tr><th>Statut</th><th class="r">Nombre</th><th class="r">Montant € HT</th><th class="r">Part</th><th class="r">Panier moyen</th></tr></thead><tbody>${devisRows}
+      <tr class="tot"><td>Total</td><td class="r">${total.length}</td><td class="r">${money(mTot)}</td><td></td><td class="r">${total.length ? money(mTot / total.length) : ""}</td></tr></tbody></table></div></div>
+    <div class="panel"><h2>Production</h2><div style="overflow-x:auto"><table class="sv"><thead><tr><th>Statut</th><th class="r">Nombre</th><th class="r">CA € HT</th><th class="r">Marge € HT</th><th class="r">Marge %</th></tr></thead><tbody>${prodRows}
+      <tr class="tot"><td>Total</td><td class="r">${pAll.length}</td><td class="r">${money(caAll)}</td><td class="r">${money(mgAll)}</td><td class="r">${caAll ? pct(mgAll / caAll) : ""}</td></tr></tbody></table></div></div>
+    <div class="panel"><h2>Par CDP — devis</h2><div style="overflow-x:auto"><table class="sv"><thead><tr><th>CDP</th><th class="r">En attente</th><th class="r">Acceptés</th><th class="r">Refusés</th><th class="r">Taux transfo.</th></tr></thead><tbody>
+      ${cdpDevis.map(([c, at, ac, rf]) => `<tr class="click" data-go="devis" data-cdp="${esc(c)}"><td>${esc(c)}</td><td class="r">${at}</td><td class="r">${ac}</td><td class="r">${rf}</td><td class="r">${ac + rf ? pct(ac / (ac + rf)) : ""}</td></tr>`).join("")}
+      <tr class="tot"><td>Total</td><td class="r">${tot(cdpDevis, 1)}</td><td class="r">${tot(cdpDevis, 2)}</td><td class="r">${tot(cdpDevis, 3)}</td><td class="r">${tot(cdpDevis, 2) + tot(cdpDevis, 3) ? pct(tot(cdpDevis, 2) / (tot(cdpDevis, 2) + tot(cdpDevis, 3))) : ""}</td></tr></tbody></table></div></div>
+    <div class="panel"><h2>Par CDP — chiffre d'affaires</h2><div style="overflow-x:auto"><table class="sv"><thead><tr><th>CDP</th><th class="r">CA accepté € HT</th><th class="r">CA production € HT</th><th class="r">Marge € HT</th><th class="r">Marge %</th></tr></thead><tbody>
+      ${cdpCa.map(([c, acc, ca, mg]) => `<tr><td>${esc(c)}</td><td class="r">${money(acc)}</td><td class="r">${money(ca)}</td><td class="r ${mg < 0 ? "neg" : ""}">${money(mg)}</td><td class="r">${ca ? pct(mg / ca) : ""}</td></tr>`).join("")}
+      <tr class="tot"><td>Total</td><td class="r">${money(tot(cdpCa, 1))}</td><td class="r">${money(tot(cdpCa, 2))}</td><td class="r">${money(tot(cdpCa, 3))}</td><td class="r">${tot(cdpCa, 2) ? pct(tot(cdpCa, 3) / tot(cdpCa, 2)) : ""}</td></tr></tbody></table></div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">CA et marge de production : interventions réalisées.</p></div>
+    <div class="panel"><h2>Relances <small>rythme mardi et jeudi</small></h2>
+      <div class="sv-param"><label for="svDelai">Relancer au bout de (jours)</label><input type="number" id="svDelai" min="1" step="1" value="${cfg.delaiRelance}">
+        <span>Aujourd'hui</span><b>${frDate(todayISO())}</b><span>Prochain jour de relance</span><b>${frDate(prochainJourRelance())}</b></div>
+      <div style="overflow-x:auto"><table class="sv"><thead><tr><th>CDP</th><th class="r">Devis à relancer</th><th class="r">Montant € HT</th></tr></thead><tbody>
+      ${relance.map(([c, n, m]) => `<tr class="click" data-go="devis" data-cdp="${esc(c)}" data-relance="1"><td>${esc(c)}</td><td class="r">${n}</td><td class="r">${money(m)}</td></tr>`).join("")}
+      <tr class="tot click" data-go="devis" data-relance="1"><td>Total à relancer</td><td class="r">${nRel}</td><td class="r">${money(tot(relance, 2))}</td></tr></tbody></table></div></div>
+    <div class="panel"><h2>À traiter en priorité</h2><table class="sv"><tbody>
+      ${prio.map(([k, lab, n]) => `<tr class="click" data-prio="${k}"><td>${lab}</td><td class="r"><b class="${n ? "neg" : ""}">${n}</b></td></tr>`).join("")}</tbody></table></div>
+    <div class="panel wide"><h2>Activité — 12 derniers mois</h2><div style="overflow-x:auto"><table class="sv" style="min-width:560px"><thead><tr><th>Mois</th><th class="r">Devis envoyés</th><th class="r">Devis acceptés</th><th class="r">CA production € HT</th><th class="r">Marge € HT</th></tr></thead><tbody>
+      ${mRows.map(([m, env, acc, ca, mg]) => `<tr><td>${esc(mLabel(m))}</td><td class="r">${env}${env ? `<div class="bar" style="width:${(env / maxEnv) * 100}%;margin-left:auto"></div>` : ""}</td><td class="r">${acc}</td><td class="r">${money(ca)}${ca > 0 ? `<div class="bar acc" style="width:${(ca / maxCa) * 100}%;margin-left:auto"></div>` : ""}</td><td class="r ${mg < 0 ? "neg" : ""}">${money(mg)}</td></tr>`).join("")}
+      </tbody></table></div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Devis comptés à leur date d'envoi ; production comptée à la date d'intervention (comme dans le classeur Excel).</p></div>
+  </div>`;
+}
+
+/* ---- DEVIS ---- */
+function renderSvDevis() {
+  const q = norm($("svdSearch").value), st = $("svdStatut").value, cdp = $("svdCdp").value;
+  const rows = svDevis().filter((d) => (!st || d.status === st) && (!cdp || (d.cdp || ARBITRER) === cdp)
+    && (!svF.relance || aRelancer(d)) && (!svF.vieux || vieux(d)) && (!svF.jamais || jamaisRelance(d))
+    && (!q || norm([d.num, d.ticket, d.doName, d.client && d.client.name, d.client && d.client.cpVille, d.reference, d.commentaire].join(" ")).includes(q)))
+    .sort((a, b) => (b.dateEnvoi || "").localeCompare(a.dateEnvoi || "") || (b.updatedAt || 0) - (a.updatedAt || 0));
+  const cfg = SUIVI();
+  if (!svDevis().length) { $("svdWrap").innerHTML = `<div class="empty-state"><b>Aucun devis envoyé pour l'instant</b>Le fil de l'eau démarre à zéro : dès qu'un devis est envoyé (PDF « pour le DO » ou statut « Envoyé »), il apparaît ici.</div>`; return; }
+  if (!rows.length) { $("svdWrap").innerHTML = `<div class="empty-state"><b>Aucun devis ne correspond</b>Modifiez la recherche ou les filtres.</div>`; return; }
+  const opt = (vals, cur, empty) => (empty !== undefined ? `<option value="">${esc(empty)}</option>` : "") + Array.from(new Set([...vals, ...(cur && !vals.includes(cur) ? [cur] : [])])).map((v) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
+  $("svdWrap").innerHTML = `<table class="data edit" style="min-width:1450px"><thead><tr><th>CDP</th><th>Donneur d'ordre</th><th>Client final / site</th><th>Activité</th><th>N° ticket audit</th><th>N° devis</th><th>Date d'envoi</th><th class="r">Prix vente € HT</th><th>Statut</th><th class="r">Relances</th><th>Dernière relance</th><th>Commentaire</th><th class="r">Jours sans relance</th><th>À relancer</th></tr></thead><tbody>` +
+    rows.map((d) => { const j = joursSansRelance(d); return `<tr data-id="${esc(d.id)}" class="${vieux(d) ? "late" : ""}">
+      <td><select class="w-m" data-df="cdp">${opt(cfg.cdps, d.cdp || ARBITRER)}</select></td>
+      <td>${esc(d.doName)}</td><td>${esc(d.client && d.client.name)}<div class="muted" style="font-size:12px">${esc(d.client && d.client.cpVille)}</div></td>
+      <td><select class="w-s" data-df="activite">${opt(cfg.activites, d.activite, "—")}</select></td>
+      <td><input class="w-s" data-df="ticket" value="${esc(d.ticket)}"></td>
+      <td><button class="linkish mono" data-open="1" title="Ouvrir le devis">${esc(d.num)}</button></td>
+      <td><input type="date" class="w-m" data-df="dateEnvoi" value="${esc(d.dateEnvoi || "")}"></td>
+      <td class="r money">${money(montant(d))}</td>
+      <td><select class="w-m" data-df="status">${SVD.map(([v, l]) => `<option value="${v}" ${v === d.status ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+      <td class="r" style="white-space:nowrap">${Number(d.relances) || 0} <button class="btn sm" data-relance="1" ${d.status !== "envoye" || S.readOnly ? "disabled" : ""} title="Ajoute une relance datée d'aujourd'hui">+ Relancé</button></td>
+      <td><input type="date" class="w-m" data-df="derniereRelance" value="${esc(d.derniereRelance || "")}"></td>
+      <td><input class="w-l" data-df="commentaire" value="${esc(d.commentaire || "")}" placeholder="—"></td>
+      <td class="r">${j === null ? "" : j}</td>
+      <td>${aRelancer(d) ? `<span class="oui">OUI</span>` : ""}</td></tr>`; }).join("") + `</tbody></table>`;
+}
+async function svSaveDevis(id, patch) {
+  const d = S.devis.find((x) => x.id === id); if (!d || S.readOnly) return;
+  const nd = { ...JSON.parse(JSON.stringify(d)), ...patch, updatedAt: Date.now() }; delete nd.updatedBy;
+  if (nd.status !== "brouillon" && !nd.dateEnvoi) nd.dateEnvoi = todayISO();
+  if (!(await Store.saveDevis(nd))) return;
+  if (S.cur && S.cur.id === id) { Object.assign(S.cur, patch, { dateEnvoi: nd.dateEnvoi, updatedAt: nd.updatedAt }); loadIntoForm(); }
+  if (patch.status === "accepte" && Store.refreshProduction) Store.refreshProduction();
+  renderSuivi();
+}
+
+/* ---- PRODUCTION ---- */
+function renderSvProd() {
+  const q = norm($("svpSearch").value), st = $("svpStatut").value, cdp = $("svpCdp").value, cfg = SUIVI();
+  const P = (S.production || []).filter((p) => (!st || (st === "KO" ? PROD_KO.includes(p.statut) : p.statut === st)) && (!cdp || (p.cdp || ARBITRER) === cdp)
+    && (!svF.sansTech || (p.statut === "PLANIFIE" && !(p.technicien || "").trim())) && (!svF.neg || (marge(p) ?? 0) < 0)
+    && (!q || norm([p.site, p.doName, p.ticket, p.num, p.technicien, p.commentaire].join(" ")).includes(q)))
+    .sort((a, b) => (!a.dateIntervention) - (!b.dateIntervention) || (b.dateIntervention || "").localeCompare(a.dateIntervention || ""));
+  if (!(S.production || []).length) { $("svpWrap").innerHTML = `<div class="empty-state"><b>Aucune intervention pour l'instant</b>Les devis acceptés arrivent ici automatiquement. Ajoutez une intervention sans devis avec « Nouvelle intervention ».</div>`; return; }
+  if (!P.length) { $("svpWrap").innerHTML = `<div class="empty-state"><b>Aucune intervention ne correspond</b>Modifiez la recherche ou les filtres.</div>`; return; }
+  const opt = (vals, cur, empty) => (empty !== undefined ? `<option value="">${esc(empty)}</option>` : "") + Array.from(new Set([...vals, ...(cur && !vals.includes(cur) ? [cur] : [])])).map((v) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
+  $("svpWrap").innerHTML = `<table class="data edit" style="min-width:1500px"><thead><tr><th>CDP</th><th>Donneur d'ordre</th><th>Site</th><th>Activité</th><th>N° ticket</th><th>Date intervention</th><th class="r">Prix vente € HT</th><th class="r">Prix achat € HT</th><th class="r">Marge € HT</th><th>Technicien</th><th>Statut</th><th>Commentaire</th><th class="r">Marge %</th><th></th></tr></thead><tbody>` +
+    P.map((p) => { const m = marge(p), mp = margePct(p); return `<tr data-pid="${esc(p.id)}">
+      <td><select class="w-m" data-pf="cdp">${opt(cfg.cdps, p.cdp || ARBITRER)}</select></td>
+      <td><input class="w-m" data-pf="doName" list="doList" value="${esc(p.doName || "")}"></td>
+      <td><input class="w-l" data-pf="site" value="${esc(p.site || "")}">${p.devisId ? `<div style="font-size:12px">devis <button class="linkish mono" data-open-devis="${esc(p.devisId)}">${esc(p.num || "ouvrir")}</button></div>` : ""}</td>
+      <td><select class="w-s" data-pf="activite">${opt(cfg.activites, p.activite, "—")}</select></td>
+      <td><input class="w-s" data-pf="ticket" value="${esc(p.ticket || "")}"></td>
+      <td><input type="date" class="w-m" data-pf="dateIntervention" value="${esc(p.dateIntervention || "")}"></td>
+      <td class="r"><input class="w-n" inputmode="decimal" data-pf="prixVente" value="${p.prixVente === null || p.prixVente === undefined || p.prixVente === "" ? "" : esc(fmtNum(p.prixVente))}"></td>
+      <td class="r"><input class="w-n" inputmode="decimal" data-pf="prixAchat" value="${p.prixAchat === null || p.prixAchat === undefined || p.prixAchat === "" ? "" : esc(fmtNum(p.prixAchat))}"></td>
+      <td class="r money ${m !== null && m < 0 ? "neg" : ""}">${m === null ? "" : money(m)}</td>
+      <td><input class="w-m" data-pf="technicien" list="techList" value="${esc(p.technicien || "")}"></td>
+      <td><select class="w-m" data-pf="statut">${PROD_STATUTS.map((s) => `<option value="${s}" ${s === p.statut ? "selected" : ""}>${PROD_LABEL[s]}</option>`).join("")}</select></td>
+      <td><input class="w-l" data-pf="commentaire" value="${esc(p.commentaire || "")}" placeholder="—"></td>
+      <td class="r">${mp === null ? "" : `<span class="${mp < 0 ? "neg" : ""}">${pct(mp)}</span>`}</td>
+      <td><button class="icon-btn ${armedProd === p.id ? "neg" : ""}" data-pdel="1" title="${armedProd === p.id ? "Cliquer encore pour supprimer" : "Supprimer l'intervention"}" aria-label="Supprimer l'intervention">${armedProd === p.id ? "Confirmer" : "✕"}</button></td></tr>`; }).join("") + `</tbody></table>`;
+}
+let armedProd = null;
+async function svSaveProd(id, patch) {
+  const p = (S.production || []).find((x) => x.id === id); if (!p || S.readOnly) return;
+  const np = { ...JSON.parse(JSON.stringify(p)), ...patch }; delete np.updatedBy;
+  if (await Store.saveProduction(np)) renderSuivi();
+}
+
+/* ---- LISTES ---- */
+let svRepDraft = null;
+function renderSvListes() {
+  const cfg = SUIVI(); if (!svRepDraft) svRepDraft = { ...cfg.repartition };
+  $("svlDelai").value = cfg.delaiRelance; $("svlCdps").value = cfg.cdps.join("\n"); $("svlActs").value = cfg.activites.join("\n"); $("svlTechs").value = cfg.techniciens.join("\n");
+  fillSelect($("svlRepCdp"), cfg.cdps, cfg.cdps[0]);
+  const rows = Object.entries(svRepDraft).sort((a, b) => doName(a[0]).localeCompare(doName(b[0])));
+  $("svlRep").innerHTML = rows.map(([code, c]) => `<tr data-code="${esc(code)}"><td>${esc(doName(code))}</td><td><select data-rep="1">${cfg.cdps.map((v) => `<option ${v === c ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></td><td><button class="icon-btn" data-repdel="1" aria-label="Retirer ${esc(doName(code))}">✕</button></td></tr>`).join("")
+    || `<tr><td colspan="3" class="muted">Aucun DO : tous les devis seront « À arbitrer ».</td></tr>`;
+}
+async function saveSuivi(next, msg) {
+  suiviCfg = next;
+  if (await Store.saveConfig("suivi", next)) { if (msg) toast(msg); }
+  renderSuivi(); if (S.cur) loadIntoForm();
+}
+
+function renderSuivi() {
+  if (!Store.features.suivi || $("view-suivi").hidden) return;
+  ["activite", "devis", "production", "listes"].forEach((v) => { $("sv-" + v).hidden = v !== svView; });
+  document.querySelectorAll("[data-sv]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sv === svView)));
+  const cfg = SUIVI();
+  $("techList").innerHTML = cfg.techniciens.map((t) => `<option value="${esc(t)}"></option>`).join("");
+  const keepSel = (sel, html) => { const v = sel.value; sel.innerHTML = html; sel.value = v; };
+  keepSel($("svdCdp"), `<option value="">Tous les CDP</option>` + cfg.cdps.map((c) => `<option>${esc(c)}</option>`).join(""));
+  keepSel($("svpCdp"), `<option value="">Tous les CDP</option>` + cfg.cdps.map((c) => `<option>${esc(c)}</option>`).join(""));
+  keepSel($("svpStatut"), `<option value="">Tous les statuts</option>` + PROD_STATUTS.map((s) => `<option value="${s}">${PROD_LABEL[s]}</option>`).join("") + `<option value="KO">Annulé / KO (tous)</option>`);
+  $("svdRelance").checked = svF.relance; $("svdVieux").checked = svF.vieux; $("svdJamais").checked = svF.jamais; $("svpSansTech").checked = svF.sansTech; $("svpNeg").checked = svF.neg;
+  if (svView === "activite") renderActivite();
+  if (svView === "devis") renderSvDevis();
+  if (svView === "production") renderSvProd();
+  if (svView === "listes") renderSvListes();
+}
+function svGo(view, filters) {
+  svView = view; Object.keys(svF).forEach((k) => (svF[k] = false));
+  $("svdSearch").value = ""; $("svpSearch").value = ""; $("svdStatut").value = ""; $("svdCdp").value = ""; $("svpStatut").value = ""; $("svpCdp").value = "";
+  Object.assign(svF, filters.flags || {});
+  renderSuivi();
+  if (filters.st !== undefined) { (view === "devis" ? $("svdStatut") : $("svpStatut")).value = filters.st; }
+  if (filters.cdp !== undefined) { (view === "devis" ? $("svdCdp") : $("svpCdp")).value = filters.cdp; }
+  renderSuivi();
+}
+function bindSuivi() {
+  document.querySelectorAll("[data-sv]").forEach((b) => b.addEventListener("click", () => { svView = b.dataset.sv; svRepDraft = null; renderSuivi(); }));
+  $("sv-activite").addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-go], tr[data-prio]"); if (!tr) return;
+    if (tr.dataset.prio) {
+      const k = tr.dataset.prio;
+      if (k === "vieux" || k === "jamais") svGo("devis", { st: "envoye", flags: { [k]: true } });
+      else if (k === "arbitrer") svGo("devis", { cdp: ARBITRER });
+      else svGo("production", { st: "PLANIFIE", flags: { [k]: true } });
+      return;
+    }
+    svGo(tr.dataset.go, { st: tr.dataset.st, cdp: tr.dataset.cdp, flags: tr.dataset.relance ? { relance: true } : {} });
+  });
+  $("sv-activite").addEventListener("change", (e) => {
+    if (e.target.id !== "svDelai") return; const n = Math.max(1, Math.round(parseNum(e.target.value) || 7));
+    saveSuivi({ ...SUIVI(), delaiRelance: n }, `Relance au bout de ${n} jours`);
+  });
+  ["svdSearch", "svpSearch"].forEach((id) => $(id).addEventListener("input", () => renderSuivi()));
+  ["svdStatut", "svdCdp", "svpStatut", "svpCdp"].forEach((id) => $(id).addEventListener("change", () => renderSuivi()));
+  [["svdRelance", "relance"], ["svdVieux", "vieux"], ["svdJamais", "jamais"], ["svpSansTech", "sansTech"], ["svpNeg", "neg"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { svF[k] = e.target.checked; renderSuivi(); }));
+  // Devis : édition en ligne
+  $("svdWrap").addEventListener("change", (e) => {
+    const el = e.target.closest("[data-df]"); if (!el) return; const id = el.closest("tr").dataset.id; const f = el.dataset.df;
+    svSaveDevis(id, { [f]: el.value, ...(f === "cdp" ? { cdpAuto: false } : {}) });
+  });
+  $("svdWrap").addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-id]"); if (!tr) return; const id = tr.dataset.id;
+    if (e.target.closest("[data-open]")) { openDevis(id); return; }
+    if (e.target.closest("[data-relance]")) { const d = S.devis.find((x) => x.id === id); svSaveDevis(id, { relances: (Number(d.relances) || 0) + 1, derniereRelance: todayISO() }).then(() => toast(`Relance notée pour le devis ${d.num}`)); }
+  });
+  // Production : édition en ligne
+  $("svpWrap").addEventListener("change", (e) => {
+    const el = e.target.closest("[data-pf]"); if (!el) return; const id = el.closest("tr").dataset.pid; const f = el.dataset.pf;
+    let v = el.value; if (f === "prixVente" || f === "prixAchat") v = parseNum(v);
+    svSaveProd(id, { [f]: v });
+  });
+  $("svpWrap").addEventListener("click", async (e) => {
+    const od = e.target.closest("[data-open-devis]"); if (od) { openDevis(od.dataset.openDevis); return; }
+    const del = e.target.closest("[data-pdel]"); if (!del) return; const id = del.closest("tr").dataset.pid;
+    if (armedProd !== id) { armedProd = id; renderSvProd(); setTimeout(() => { if (armedProd === id) { armedProd = null; renderSvProd(); } }, 4000); return; }
+    armedProd = null; if (await Store.deleteProduction(id)) { toast("Intervention supprimée"); renderSuivi(); }
+  });
+  $("svpAdd").addEventListener("click", async () => {
+    if (S.readOnly) return; const me = Store.author || ""; const cfg = SUIVI();
+    const p = { id: "p-" + uid(), devisId: null, statut: "A PLANIFIER", cdp: cfg.cdps.find((c) => norm(c) === norm(me)) || ARBITRER, doName: "", site: "", activite: "", ticket: "", num: "", dateIntervention: "", prixVente: null, prixAchat: null, technicien: "", commentaire: "" };
+    if (await Store.saveProduction(p)) { svF.sansTech = false; svF.neg = false; $("svpStatut").value = ""; $("svpSearch").value = ""; renderSuivi(); const inp = $("svpWrap").querySelector(`tr[data-pid="${p.id}"] [data-pf="site"]`); if (inp) inp.focus(); toast("Intervention ajoutée : complétez la ligne"); }
+  });
+  // Listes
+  $("svlRep").addEventListener("change", (e) => { const s = e.target.closest("[data-rep]"); if (!s) return; svRepDraft[s.closest("tr").dataset.code] = s.value; });
+  $("svlRep").addEventListener("click", (e) => { const b = e.target.closest("[data-repdel]"); if (!b) return; delete svRepDraft[b.closest("tr").dataset.code]; renderSvListes(); });
+  $("svlRepAdd").addEventListener("click", () => {
+    const t = $("svlRepDo").value.trim().toLowerCase(); const found = S.catalog.dos.find((d) => d.name.toLowerCase() === t || d.code.toLowerCase() === t);
+    if (!found) { toast("DO introuvable : choisissez un nom dans la liste"); return; }
+    svRepDraft[found.code] = $("svlRepCdp").value; $("svlRepDo").value = ""; renderSvListes();
+  });
+  $("svlSave").addEventListener("click", () => {
+    const lines = (id) => Array.from(new Set($(id).value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)));
+    const cdps = lines("svlCdps"); if (!cdps.includes(ARBITRER)) cdps.push(ARBITRER);
+    saveSuivi({ ...SUIVI(), delaiRelance: Math.max(1, Math.round(parseNum($("svlDelai").value) || 7)), cdps, activites: lines("svlActs"), techniciens: lines("svlTechs"), repartition: { ...svRepDraft } }, "Listes enregistrées");
+  });
+}
+
+
 /* ---------------- views ---------------- */
 function showView(v) {
   document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.view === v));
-  ["devis", "liste", "histo", "bpu", "societe"].forEach((x) => { $("view-" + x).hidden = x !== v; });
-  if (v === "liste") renderList(); if (v === "bpu") renderBpu(); if (v === "societe") renderCompany(); if (v === "histo") renderJournal();
+  ["devis", "liste", "suivi", "histo", "bpu", "societe"].forEach((x) => { $("view-" + x).hidden = x !== v; });
+  if (v === "liste") renderList(); if (v === "bpu") renderBpu(); if (v === "societe") renderCompany(); if (v === "histo") renderJournal(); if (v === "suivi") renderSuivi();
   try { history.replaceState(null, "", "#" + v); } catch (e) {}
 }
 
@@ -1386,7 +1866,7 @@ async function boot() {
   $("btnPdfDo").addEventListener("click", () => makePdf("do"));
   $("btnPdfClient").addEventListener("click", () => makePdf("client"));
   window.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); if (!$("view-devis").hidden) saveCurrent(false); } });
-  bindHistory();
+  bindHistory(); bindSuivi();
   $("catalogFile").addEventListener("change", async (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) await importCatalogFile(f); });
 
   if (CRM_CFG) {
@@ -1435,9 +1915,10 @@ async function startData() {
   try { S.catalog = await Store.loadCatalog(); }
   catch (e) { const b = $("banner"); b.hidden = false; b.className = "banner note"; b.textContent = "Le catalogue des BPU n'a pas pu être chargé. Rechargez la page."; S.catalog = { grids: [], mapping: {}, dos: [] }; }
   S.cur = blankDevis(); loadIntoForm(); afterCatalog();
+  if (Store.features.suivi) $("tabSuivi").hidden = false;
   if (Store.features.history) { $("tabHisto").hidden = false; $("listStatus").insertAdjacentHTML("beforeend", `<option value="__trash">Corbeille</option>`); }
   updateWho();
-  const hash = (location.hash || "").slice(1); if (["liste", "bpu", "societe", "histo"].includes(hash)) showView(hash);
+  const hash = (location.hash || "").slice(1); if (["liste", "bpu", "societe", "histo", "suivi"].includes(hash)) showView(hash);
 
   const { mode, canWrite } = await Store.init();
   const ss = $("storeState");
@@ -1455,6 +1936,7 @@ async function startData() {
     if (cfg.company) S.company = { ...DEFAULT_COMPANY, ...cfg.company };
     if (cfg.mapping && cfg.mapping.map) S.mapping = cfg.mapping.map;
     if (cfg.doaddr && cfg.doaddr.map) S.doAddr = cfg.doaddr.map;
+    if (cfg.suivi) suiviCfg = cfg.suivi;
     renderCompany(); if (!$("view-bpu").hidden) renderBpu(); renderCatalog();
   });
   Store.onGrids((list) => { S.custom = {}; list.forEach((g) => { if (g && g.id && Array.isArray(g.items)) S.custom[g.id] = g; }); renderCatalog(); if (!$("view-bpu").hidden) renderBpu(); });
@@ -1470,7 +1952,9 @@ async function startData() {
       const fresh = S.devis.find((d) => d.id === S.cur.id); if (fresh && fresh.updatedAt !== S.cur.updatedAt) { S.cur = normalizeDevis(JSON.parse(JSON.stringify(fresh))); loadIntoForm(); }
     }
     if (!$("view-liste").hidden) renderList();
+    renderSuivi();
   });
+  if (Store.features.suivi && Store.onProduction) Store.onProduction((list) => { S.production = list.filter((p) => p && p.id); renderSuivi(); });
   S.storeReady = true; renderHead();
 }
 window.addEventListener("beforeunload", (e) => { if (S.dirty && S.cur && S.cur.lines.length) { e.preventDefault(); e.returnValue = ""; } });
